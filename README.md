@@ -11,9 +11,12 @@ Some transmitters also have a [Broadcastify](https://www.broadcastify.com) liste
 Omarchy 4. Review the source, then:
 
 ```sh
-omarchy plugin add https://github.com/johnicboom/nwsradiostream.git --enable
-omarchy plugin enable io.github.johnicboom.nwsradiostream --section center --after omarchy.weather
+omarchy plugin add https://github.com/JohnicBoom/nwsradiostream.git --enable
 ```
+
+That clones, validates, and enables the bar widget (`defaultSection`: center). Optional: `omarchy plugin enable io.github.johnicboom.nwsradiostream --section center --after omarchy.weather` only if you want it parked next to the weather chip.
+
+Design notes, stream-coverage growth, and pitfalls: [docs/CONTEXT.md](docs/CONTEXT.md).
 
 Needs `mpv`, `ffmpeg`, `curl`, and Node on PATH (all present on a stock Omarchy install).
 
