@@ -1,0 +1,11 @@
+{
+  "icestats": {
+    "source": {
+      "bitrate": 64,
+      "listeners": 1,
+      "listenurl": "http://wxradio.org:8000/WV-Charleston-WXJ84",
+      "server_name": "Charleston",
+      "server_type": "audio/mpeg"
+    }
+  }
+}

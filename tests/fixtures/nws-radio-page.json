@@ -1,0 +1,41 @@
+{
+  "@context": { "@version": "1.1" },
+  "@graph": [
+    {
+      "@id": "https://api.weather.gov/radio/KEC94",
+      "@type": "wx:Transmitter",
+      "callSign": "KEC94",
+      "transmitterFrequency": "162.550",
+      "siteName": "Phoenix",
+      "siteCity": "South Mtn.",
+      "siteState": "AZ",
+      "sameCodes": ["004013", "004021"],
+      "counties": ["AZC013", "AZC021"]
+    },
+    {
+      "@id": "https://api.weather.gov/radio/WXJ25",
+      "@type": "wx:Transmitter",
+      "callSign": "WXJ25",
+      "transmitterFrequency": "162.550",
+      "siteName": "Juneau",
+      "siteCity": "Juneau",
+      "siteState": "AK",
+      "sameCodes": ["002110"],
+      "counties": ["AKC110"]
+    },
+    {
+      "@id": "https://api.weather.gov/radio/KZZ67",
+      "@type": "wx:Transmitter",
+      "callSign": "KZZ67",
+      "transmitterFrequency": "162.425",
+      "siteName": "Blue Rapids",
+      "siteCity": "Merrimac",
+      "siteState": "KS",
+      "sameCodes": ["020201"],
+      "counties": ["KSC201"]
+    }
+  ],
+  "pagination": {
+    "next": "https://api.weather.gov/radio?cursor=eyJpIjo1MDB9"
+  }
+}

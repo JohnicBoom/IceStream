@@ -1,0 +1,50 @@
+{
+  "icestats": {
+    "admin": "icemaster@localhost",
+    "host": "wxradio.org",
+    "source": [
+      {
+        "bitrate": 64,
+        "listeners": 1,
+        "listenurl": "http://wxradio.org:8000/AK-Juneau-WXJ25",
+        "server_name": "Unspecified name",
+        "server_type": "audio/mpeg"
+      },
+      {
+        "bitrate": 320,
+        "listeners": 4,
+        "listenurl": "http://wxradio.org:8000/AZ-Phoenix-KEC94",
+        "server_name": "Unspecified name",
+        "server_type": "audio/mpeg"
+      },
+      {
+        "bitrate": 32,
+        "listeners": 4,
+        "listenurl": "http://wxradio.org:8000/FL-Tallahassee-KIH24",
+        "server_name": "Unspecified name",
+        "server_type": "audio/mpeg"
+      },
+      {
+        "bitrate": 32,
+        "listeners": 0,
+        "listenurl": "http://wxradio.org:8000/FL-Tallahassee-KIH24-alt",
+        "server_name": "Unspecified name",
+        "server_type": "audio/mpeg"
+      },
+      {
+        "bitrate": 32,
+        "listeners": 4,
+        "listenurl": "http://wxradio.org:8000/KS-Topeka-WXK91-alt1",
+        "server_name": "NOAA Radio WXK91",
+        "server_type": "audio/aacp"
+      },
+      {
+        "bitrate": 32,
+        "listeners": 0,
+        "listenurl": "http://wxradio.org:8000/MA-Bourne/Hyannis-KEC73",
+        "server_name": "NOAA Weather Radio Bourne/Hyannis MA",
+        "server_type": "audio/mpeg"
+      }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "https://api.weather.gov/points/39.7456,-97.0892",
+  "type": "Feature",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [-97.0892, 39.7456]
+  },
+  "properties": {
+    "nwr": {
+      "transmitter": "KZZ67",
+      "sameCode": "020201",
+      "areaBroadcast": "https://api.weather.gov/radio/KZZ67/broadcast",
+      "pointBroadcast": "https://api.weather.gov/points/39.7456,-97.0892/radio"
+    },
+    "relativeLocation": {
+      "properties": {
+        "city": "Linn",
+        "state": "KS"
+      }
+    }
+  }
+}

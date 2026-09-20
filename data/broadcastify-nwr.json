@@ -1,0 +1,37 @@
+[
+  {
+    "callSign": "KZZ81",
+    "feedId": 46216,
+    "title": "Lockport",
+    "online": true,
+    "sameCodes": ["017097", "017089", "017031", "017043", "017093", "017197", "017063", "017091", "018089"]
+  },
+  {
+    "callSign": "KWO39",
+    "feedId": 32452,
+    "title": "Chicago",
+    "online": false,
+    "sameCodes": ["017031", "017043", "017097", "018089"]
+  },
+  {
+    "callSign": "KXI58",
+    "feedId": 47441,
+    "title": "Plano",
+    "online": true,
+    "sameCodes": ["017037", "017043", "017063", "017089", "017093", "017099", "017197"]
+  },
+  {
+    "callSign": "KZZ78",
+    "feedId": 39802,
+    "title": "Ashland",
+    "online": true,
+    "sameCodes": []
+  },
+  {
+    "callSign": "KEC76",
+    "feedId": 45413,
+    "title": "Denver",
+    "online": true,
+    "sameCodes": []
+  }
+]

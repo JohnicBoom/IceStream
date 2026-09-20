@@ -1,0 +1,33 @@
+{
+  "results": [
+    {
+      "id": 4451577,
+      "name": "Wood Dale",
+      "latitude": 33.4779,
+      "longitude": -88.82422,
+      "feature_code": "PPLX",
+      "country_code": "US",
+      "admin1": "Mississippi"
+    },
+    {
+      "id": 4916975,
+      "name": "Wood Dale",
+      "latitude": 41.96336,
+      "longitude": -87.97896,
+      "feature_code": "PPL",
+      "country_code": "US",
+      "admin1": "Illinois",
+      "admin2": "DuPage County",
+      "postcodes": ["60191"]
+    },
+    {
+      "id": 4916978,
+      "name": "Wood Dale Grove County Forest Preserve",
+      "latitude": 41.94447,
+      "longitude": -87.97534,
+      "feature_code": "PRK",
+      "country_code": "US",
+      "admin1": "Illinois"
+    }
+  ]
+}

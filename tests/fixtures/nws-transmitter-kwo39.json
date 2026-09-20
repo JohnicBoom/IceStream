@@ -1,0 +1,11 @@
+{
+  "@id": "https://api.weather.gov/radio/KWO39",
+  "@type": "wx:Transmitter",
+  "callSign": "KWO39",
+  "transmitterFrequency": "162.550",
+  "siteName": "Chicago",
+  "siteCity": "Wood Dale",
+  "siteState": "IL",
+  "sameCodes": ["017043"],
+  "counties": ["ILC043"]
+}

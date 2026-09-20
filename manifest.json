@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.johnicboom.nwsradiostream",
+  "name": "NWSRadioStream",
+  "version": "0.1.0",
+  "author": "John Pappas",
+  "license": "MIT",
+  "homepage": "https://github.com/johnicboom/nwsradiostream",
+  "description": "NOAA Weather Radio streams in the Omarchy bar",
+  "kinds": ["bar-widget", "service"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "barWidget": "ui/BarWidget.qml",
+    "service": "ui/Service.qml"
+  },
+  "barWidget": {
+    "displayName": "NWSRadioStream",
+    "description": "Play NOAA Weather Radio from the bar",
+    "category": "Weather",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}
