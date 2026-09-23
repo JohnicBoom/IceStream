@@ -65,17 +65,32 @@ Panel {
     return "Offline"
   }
 
-  readonly property var iceStreamNode: {
+  // Bind playback streams first. PwNode.properties is empty until PwObjectTracker
+  // has the node, so we cannot filter by application.name on the unbound list.
+  readonly property var playbackStreams: {
+    var list = []
     var nodes = Pipewire.nodes && Pipewire.nodes.values ? Pipewire.nodes.values : []
     for (var i = 0; i < nodes.length; i++) {
       var n = nodes[i]
-      var props = n && n.properties ? n.properties : {}
-      var app = String(props["application.name"] || props["application.process.binary"] || "")
-      var media = String(props["media.name"] || "")
-      if (app.toLowerCase().indexOf("icestream") !== -1) return n
-      if (media === "IceStream") return n
+      if (!n || !n.isStream) continue
+      if (n.isSink === true) list.push(n)
     }
-    return null
+    return list
+  }
+
+  readonly property var iceStreamNode: {
+    var list = root.playbackStreams
+    var fallback = null
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i]
+      var props = n && n.properties ? n.properties : {}
+      var app = String(props["application.name"] || "").toLowerCase()
+      var media = String(props["media.name"] || "")
+      var bin = String(props["application.process.binary"] || "").toLowerCase()
+      if (app.indexOf("icestream") !== -1 || media === "IceStream") return n
+      if (bin === "mpv" && root.playing) fallback = n
+    }
+    return fallback
   }
 
   KeyboardPanel {
@@ -385,10 +400,10 @@ Panel {
     }
   }
 
-  PwObjectTracker { objects: root.iceStreamNode ? [root.iceStreamNode] : [] }
+  PwObjectTracker { objects: root.playbackStreams }
   PwNodePeakMonitor {
     id: peakMonitor
     node: root.iceStreamNode
-    enabled: root.opened && root.playing
+    enabled: root.opened && root.playing && !!root.iceStreamNode
   }
 }
