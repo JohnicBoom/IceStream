@@ -110,6 +110,39 @@ test("parseNwsTransmitter reads a single /radio/{callSign} payload", () => {
   })
 })
 
+test("buildLocateOptions ranks Wood Dale covering offline then Lockport then Plano", () => {
+  const origin = { latitude: 41.96336, longitude: -87.97896 }
+  const covering = {
+    callSign: "KWO39",
+    siteName: "Chicago",
+    siteCity: "Wood Dale",
+    siteState: "IL",
+    frequency: "162.550",
+    streamUrl: null,
+    sameCodes: ["017043"]
+  }
+  const streams = [
+    {
+      callSign: "KXI58",
+      state: "IL",
+      siteName: "Plano",
+      streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58"
+    }
+  ]
+  const catalog = require("../lib/broadcastify.js").parseCatalog(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/broadcastify-nwr.json"), "utf8")
+  )
+  const ranked = locate.buildLocateOptions(covering, streams, catalog, origin)
+  assert.equal(ranked[0].callSign, "KZZ81")
+  assert.equal(locate.optionKind(ranked[0]), "browser-only")
+  assert.equal(ranked[1].callSign, "KXI58")
+  assert.equal(locate.optionKind(ranked[1]), "available")
+  const kwo = ranked.find((s) => s.callSign === "KWO39")
+  assert.ok(kwo)
+  assert.equal(kwo.covering, true)
+  assert.equal(locate.optionKind(kwo), "offline")
+})
+
 test("rankOnlineOptions prefers a closer working source over a farther Icecast mount", () => {
   const origin = { latitude: 41.96336, longitude: -87.97896 }
   const ranked = locate.rankOnlineOptions(origin, [

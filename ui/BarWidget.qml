@@ -68,8 +68,8 @@ BarWidget {
     active: root.opened
     tooltipText: {
       var station = root.radioService ? root.radioService.station : null
-      var status = root.playing ? "playing" : (root.radioService && root.radioService.playerState ? root.radioService.playerState.status : "idle")
-      if (!station || !station.callSign) return "IceStream — " + status
+      var status = root.playing ? "Playing" : (root.radioService && root.radioService.playerState && root.radioService.playerState.status === "connecting" ? "Connecting" : "Idle")
+      if (!station || !station.callSign) return "IceStream — volunteer Icecast relay"
       var bits = [station.callSign]
       if (station.siteName) bits.push(station.siteName)
       if (station.frequency) bits.push(station.frequency + " MHz")

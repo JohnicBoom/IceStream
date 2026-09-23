@@ -3,8 +3,9 @@
 # under `set -e` used to exit before mpv ran, which made every station Offline.
 sock=$1
 url=$2
+vol=${3:-40}
 if [ -z "$sock" ] || [ -z "$url" ]; then
-  echo "usage: icestream-play.sh <ipc-socket> <url>" >&2
+  echo "usage: icestream-play.sh <ipc-socket> <url> [volume]" >&2
   exit 2
 fi
 rm -f "$sock"
@@ -20,4 +21,5 @@ exec /usr/bin/mpv \
   --input-ipc-server="$sock" \
   --loop-playlist=inf \
   --cache=yes \
+  --volume="$vol" \
   -- "$url"

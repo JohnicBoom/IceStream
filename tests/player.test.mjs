@@ -89,12 +89,11 @@ test("stop returns to idle but keeps the last station", () => {
   assert.equal(stopped.error, null)
 })
 
-test("togglePlay starts, pauses, and resumes from the bar", () => {
+test("togglePlay starts then stops instead of pausing", () => {
   const started = player.togglePlay(player.initialState(), phoenix)
   assert.equal(started.status, "connecting")
   const playing = player.playAck(started, started.playToken)
-  const paused = player.togglePlay(playing, phoenix)
-  assert.equal(paused.status, "paused")
-  const resumed = player.togglePlay(paused, phoenix)
-  assert.equal(resumed.status, "playing")
+  const stopped = player.togglePlay(playing, phoenix)
+  assert.equal(stopped.status, "idle")
+  assert.equal(stopped.station.callSign, "KEC94")
 })

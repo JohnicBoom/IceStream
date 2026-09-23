@@ -25,6 +25,9 @@ Item {
   property var broadcastifyFeeds: []
   property string nearbyState: ""
   property var nearbyCallSigns: []
+  property var lastOrigin: null
+  property var locateOptions: []
+  property int volume: 40
   readonly property string pluginId: "io.github.johnicboom.icestream"
   readonly property string userAgent: "IceStream (https://github.com/JohnicBoom/IceStream)"
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
@@ -84,7 +87,7 @@ Item {
     var epoch = mpvEpoch
     stoppingMpv = true
     mpvProc.running = false
-    mpvProc.command = [playScript, ipcPath, playerState.station.streamUrl]
+    mpvProc.command = [playScript, ipcPath, playerState.station.streamUrl, String(volume)]
     Qt.callLater(function() {
       if (epoch !== root.mpvEpoch) return
       root.stoppingMpv = false
@@ -98,19 +101,25 @@ Item {
   }
 
   function togglePlay() {
-    if (playerState.status === "playing") {
-      playerState = Player.pause(playerState)
-      sendPause(true)
-      syncAnalyzer()
-      return
-    }
-    if (playerState.status === "paused") {
-      playerState = Player.resume(playerState)
-      sendPause(false)
-      syncAnalyzer()
+    if (playerState.status === "playing" || playerState.status === "connecting" || playerState.status === "paused") {
+      stop()
       return
     }
     if (playerState.station && playerState.station.streamUrl) playStation(playerState.station)
+  }
+
+  function setVolume(value) {
+    var n = Math.round(Number(value))
+    if (!isFinite(n)) return
+    if (n < 0) n = 0
+    if (n > 100) n = 100
+    volume = n
+    if (playing || connecting) sendVolume(n)
+  }
+
+  function sendVolume(n) {
+    ipcProc.command = ["python3", "-c", "import json,socket,sys\ns=socket.socket(socket.AF_UNIX)\ns.connect(sys.argv[1])\ns.sendall((json.dumps({\"command\":[\"set_property\",\"volume\", int(sys.argv[2])]})+\"\\n\").encode())\n", ipcPath, String(n)]
+    ipcProc.running = true
   }
 
   function killPlayback() {
@@ -165,6 +174,7 @@ Item {
   }
 
   function locateCoords(lat, lon, label) {
+    lastOrigin = { latitude: Number(lat), longitude: Number(lon) }
     locateMessage = "Finding the covering station" + (label ? " for " + label : "") + "…"
     pointsProc.command = ["curl", "-fsS", "--max-time", "8", "-A", userAgent, "-H", "Accept: application/geo+json", "https://api.weather.gov/points/" + lat + "," + lon]
     pointsProc.running = true
@@ -232,34 +242,41 @@ Item {
     if (result.station.siteName) title += " " + result.station.siteName
     if (result.station.siteCity && result.station.siteCity !== result.station.siteName)
       title += " (" + result.station.siteCity + ")"
-    refreshBroadcastify(result.station.callSign, result.station.sameCodes)
-    if (result.streamUrl) {
-      locateMessage = title + " covers this location."
-      playStation(result.station)
-      return
+    nearbyState = result.station.siteState || ""
+    locateOptions = Locate.buildLocateOptions(result.station, streams, broadcastifyCatalog, lastOrigin)
+    var calls = []
+    var bcfy = []
+    for (var i = 0; i < locateOptions.length; i++) {
+      calls.push(locateOptions[i].callSign)
+      if (locateOptions[i].broadcastifyUrl) {
+        bcfy.push({
+          callSign: locateOptions[i].callSign,
+          title: locateOptions[i].siteName || "",
+          url: locateOptions[i].broadcastifyUrl,
+          online: locateOptions[i].broadcastifyOnline,
+          feedId: 0
+        })
+      }
     }
+    nearbyCallSigns = calls
+    broadcastifyFeeds = bcfy
     var stopped = Player.stop(playerState)
     stopped.station = result.station
     playerState = stopped
     persist()
-    nearbyState = result.station.siteState || ""
-    var calls = [result.station.callSign]
-    if (result.fallback && result.fallback.callSign) calls.push(result.fallback.callSign)
-    var feeds = broadcastifyFeeds || []
-    for (var i = 0; i < feeds.length; i++) {
-      if (feeds[i] && feeds[i].callSign) calls.push(feeds[i].callSign)
-    }
-    nearbyCallSigns = calls
-    if (result.fallback && result.fallback.streamUrl) {
-      locateMessage = title + " covers you, but has no wxradio.org stream. Playable " + result.station.siteState + " streams are under Playable streams."
+    var kind = Locate.optionKind(result.station)
+    if (result.streamUrl) {
+      locateMessage = title + " is the covering station (Available)."
+    } else if (kind === "browser-only") {
+      locateMessage = title + " is the covering station (Browser-only)."
     } else {
-      locateMessage = title + " covers you, but no wxradio.org stream is listed."
+      locateMessage = title + " is the covering station. No volunteer Icecast for it."
     }
   }
 
   function refreshCatalog() {
     if (!icecastProc.running) {
-      icecastProc.command = ["curl", "-fsS", "--max-time", "12", "-A", userAgent, "https://wxradio.org/status-json.xsl"]
+      icecastProc.command = ["curl", "-fsS", "--max-time", "12", "-A", userAgent, "http://wxradio.org:8000/status-json.xsl"]
       icecastProc.running = true
     }
     if (!nwsProc.running) {

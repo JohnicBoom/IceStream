@@ -3,6 +3,8 @@
     "callSign": "KZZ81",
     "feedId": 46216,
     "title": "Lockport",
+    "latitude": 41.6246,
+    "longitude": -88.0042,
     "online": true,
     "sameCodes": ["017097", "017089", "017031", "017043", "017093", "017197", "017063", "017091", "018089"]
   },
@@ -10,6 +12,8 @@
     "callSign": "KWO39",
     "feedId": 32452,
     "title": "Chicago",
+    "latitude": 41.9634,
+    "longitude": -87.9790,
     "online": false,
     "sameCodes": ["017031", "017043", "017097", "018089"]
   },
@@ -17,6 +21,8 @@
     "callSign": "KXI58",
     "feedId": 47441,
     "title": "Plano",
+    "latitude": 41.6062,
+    "longitude": -88.4526,
     "online": true,
     "sameCodes": ["017037", "017043", "017063", "017089", "017093", "017099", "017197"]
   },

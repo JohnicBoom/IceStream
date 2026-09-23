@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
@@ -49,13 +50,32 @@ Panel {
   }
 
   function statusLabel() {
-    if (!radio || !radio.playerState) return "IDLE"
+    if (!radio || !radio.playerState) return "Idle"
     var status = radio.playerState.status
-    if (status === "playing") return "LIVE"
-    if (status === "connecting") return "CONNECTING"
-    if (status === "paused") return "PAUSED"
-    if (status === "error") return "OFFLINE"
-    return "IDLE"
+    if (status === "playing") return "Playing"
+    if (status === "connecting") return "Connecting"
+    if (status === "error") return "Offline"
+    return "Idle"
+  }
+
+  function optionKindLabel(opt) {
+    if (!opt) return "Offline"
+    if (opt.streamUrl) return "Available"
+    if (opt.broadcastifyUrl && opt.broadcastifyOnline !== false) return "Browser-only"
+    return "Offline"
+  }
+
+  readonly property var iceStreamNode: {
+    var nodes = Pipewire.nodes && Pipewire.nodes.values ? Pipewire.nodes.values : []
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i]
+      var props = n && n.properties ? n.properties : {}
+      var app = String(props["application.name"] || props["application.process.binary"] || "")
+      var media = String(props["media.name"] || "")
+      if (app.toLowerCase().indexOf("icestream") !== -1) return n
+      if (media === "IceStream") return n
+    }
+    return null
   }
 
   KeyboardPanel {
@@ -107,7 +127,7 @@ Panel {
 
             Text {
               width: parent.width
-              text: root.station && root.station.callSign ? root.station.callSign : "NWS Radio"
+              text: root.station && root.station.callSign ? root.station.callSign : "IceStream"
               color: root.contentForeground
               font.family: root.contentFont
               font.pixelSize: Style.font.subtitle
@@ -118,7 +138,7 @@ Panel {
             Text {
               width: parent.width
               text: {
-                if (!root.station) return "Choose a station"
+                if (!root.station) return "Volunteer Icecast relay"
                 var bits = []
                 if (root.station.siteName) bits.push(root.station.siteName)
                 if (root.station.siteState) bits.push(root.station.siteState)
@@ -145,7 +165,7 @@ Panel {
 
             Text {
               anchors.centerIn: parent
-              text: root.playing ? "⏸" : "▶"
+              text: root.playing ? "■" : "▶"
               color: Color.accent
               font.pixelSize: Style.font.subtitle
             }
@@ -160,12 +180,32 @@ Panel {
           }
         }
 
-        Spectrum {
+        PeakMeter {
           width: parent.width
-          height: Style.space(48)
-          bands: root.radio ? root.radio.bands : []
+          height: Style.space(10)
+          peak: peakMonitor.peak
           barColor: Color.accent
           restColor: root.contentForeground
+        }
+
+        Row {
+          width: parent.width
+          spacing: Style.space(8)
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "Vol"
+            color: root.contentForeground
+            font.family: root.contentFont
+            font.pixelSize: Style.font.bodySmall
+          }
+          Slider {
+            id: volSlider
+            width: parent.width - Style.space(48)
+            from: 0
+            to: 100
+            value: root.radio ? root.radio.volume : 40
+            onMoved: if (root.radio) root.radio.setVolume(value)
+          }
         }
 
         Text {
@@ -181,11 +221,11 @@ Panel {
         Column {
           width: parent.width
           spacing: Style.space(4)
-          visible: root.radio && root.radio.broadcastifyFeeds && root.radio.broadcastifyFeeds.length > 0
+          visible: root.radio && root.radio.locateOptions && root.radio.locateOptions.length > 0
 
           Text {
             width: parent.width
-            text: "Broadcastify (opens in the browser)"
+            text: "Closest online"
             color: root.contentForeground
             opacity: 0.7
             font.family: root.contentFont
@@ -193,38 +233,40 @@ Panel {
           }
 
           Repeater {
-            model: root.radio ? root.radio.broadcastifyFeeds : []
+            model: root.radio ? root.radio.locateOptions : []
             delegate: Rectangle {
               required property var modelData
-              readonly property bool offline: modelData.online === false
+              readonly property string kind: root.optionKindLabel(modelData)
               width: content.width
-              height: Style.space(28)
+              height: Style.space(32)
               radius: Style.space(4)
-              opacity: offline ? 0.55 : 1
-              color: bcfyMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+              opacity: kind === "Offline" ? 0.55 : 1
+              color: optMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
               border.width: 1
-              border.color: offline ? root.contentForeground : Color.accent
+              border.color: kind === "Available" ? Color.accent : root.contentForeground
 
               Text {
-                anchors.centerIn: parent
-                width: parent.width - Style.space(12)
-                horizontalAlignment: Text.AlignHCenter
-                text: {
-                  var status = modelData.online === true ? "Live · " : (modelData.online === false ? "Offline · " : "")
-                  return status + "Open " + modelData.callSign + (modelData.title ? " " + modelData.title : "") + " on Broadcastify"
-                }
-                color: offline ? root.contentForeground : Color.accent
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: Style.space(8)
+                text: (modelData.covering ? "Covering · " : "") + modelData.callSign + (modelData.siteName ? " " + modelData.siteName : "") + " · " + kind
+                color: kind === "Offline" ? root.contentForeground : Color.accent
                 font.family: root.contentFont
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
               }
 
               MouseArea {
-                id: bcfyMouse
+                id: optMouse
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (root.radio) root.radio.openBroadcastify(modelData)
+                onClicked: {
+                  if (!root.radio) return
+                  if (modelData.streamUrl) root.radio.playStation(modelData)
+                  else if (modelData.broadcastifyUrl) root.radio.openBroadcastify({ url: modelData.broadcastifyUrl, feedId: 0 })
+                }
               }
             }
           }
@@ -232,7 +274,7 @@ Panel {
 
         Text {
           width: parent.width
-          text: "Playable streams"
+          text: "All volunteer Icecast relays"
           color: root.contentForeground
           opacity: 0.7
           font.family: root.contentFont
@@ -331,7 +373,7 @@ Panel {
 
         Text {
           width: parent.width
-          text: "Internet audio is volunteer-relayed. It is not a substitute for a dedicated NOAA Weather Radio receiver."
+          text: "IceStream plays volunteer Icecast relays from wxradio.org. Broadcastify links open in a browser and cannot be streamed here."
           color: root.contentForeground
           opacity: 0.55
           font.family: root.contentFont
@@ -341,5 +383,12 @@ Panel {
       }
       }
     }
+  }
+
+  PwObjectTracker { objects: root.iceStreamNode ? [root.iceStreamNode] : [] }
+  PwNodePeakMonitor {
+    id: peakMonitor
+    node: root.iceStreamNode
+    enabled: root.opened && root.playing
   }
 }
