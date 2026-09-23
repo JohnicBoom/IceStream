@@ -15,6 +15,13 @@ function sine(freq, rate, n) {
   return out
 }
 
+test("peakFromPcm is zero for silence and near one for a full-scale sine", () => {
+  assert.equal(spectrum.peakFromPcm(new Float32Array(512)), 0)
+  const samples = new Float32Array(512)
+  for (let i = 0; i < samples.length; i++) samples[i] = Math.sin((2 * Math.PI * i) / 32)
+  assert.ok(spectrum.peakFromPcm(samples) > 0.9)
+})
+
 test("bandsFromPcm returns 16 log-spaced bands", () => {
   const bands = spectrum.bandsFromPcm(sine(1000, spectrum.SAMPLE_RATE, spectrum.FFT_SIZE))
   assert.equal(bands.length, 16)

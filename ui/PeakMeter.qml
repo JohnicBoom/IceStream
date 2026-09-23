@@ -19,7 +19,7 @@ Item {
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
     height: parent.height
-    width: parent.width * Math.max(0, Math.min(1, root.peak * 1.4))
+    width: parent.width * Math.max(0, Math.min(1, root.peak * 10))
     radius: height / 2
     color: root.barColor
     Behavior on width { NumberAnimation { duration: 70 } }

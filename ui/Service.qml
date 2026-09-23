@@ -14,6 +14,7 @@ Item {
   property var streams: []
   property var transmitters: []
   property var bands: []
+  property real playbackPeak: 0
   property bool panelOpen: false
   property string locateMessage: ""
   property string searchQuery: ""
@@ -34,6 +35,7 @@ Item {
   readonly property string ipcPath: runtimeDir + "/icestream.mpv.sock"
   readonly property string statePath: Quickshell.env("HOME") + "/.local/state/icestream/state.json"
   readonly property string analyzerPath: filePath(Qt.resolvedUrl("../bin/icestream-analyze.mjs"))
+  readonly property string peakScript: filePath(Qt.resolvedUrl("../bin/icestream-peak.mjs"))
   readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
   readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
   property int mpvEpoch: 0
@@ -286,14 +288,14 @@ Item {
   }
 
   function syncAnalyzer() {
-    var shouldRun = panelOpen && playing && playerState.station && playerState.station.streamUrl
+    var shouldRun = panelOpen && playing
     if (!shouldRun) {
       analyzerProc.running = false
-      bands = []
+      playbackPeak = 0
       return
     }
     analyzerProc.running = false
-    analyzerProc.command = ["sh", "-c", "ffmpeg -hide_banner -nostdin -loglevel error -i \"$1\" -ac 1 -ar 22050 -f f32le pipe:1 | node \"$2\"", "icestream-analyze", playerState.station.streamUrl, analyzerPath]
+    analyzerProc.command = ["sh", "-c", "pw-cat --record --target icestream --format f32 --rate 8000 --channels 1 - 2>/dev/null | node \"$1\"", "icestream-peak", peakScript]
     Qt.callLater(function() { if (root.panelOpen && root.playing) analyzerProc.running = true })
   }
 
@@ -388,6 +390,7 @@ Item {
       onRead: function(line) {
         try {
           var parsed = JSON.parse(line)
+          if (parsed && typeof parsed.peak === "number") root.playbackPeak = parsed.peak
           if (parsed && parsed.bands) root.bands = parsed.bands
         } catch (e) {}
       }
