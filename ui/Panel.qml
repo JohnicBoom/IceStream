@@ -172,6 +172,7 @@ Panel {
           bands: root.radio ? root.radio.bands : []
           barColor: Color.accent
           restColor: root.contentForeground
+          strikeColor: Color.urgent
         }
 
         Row {
