@@ -168,7 +168,7 @@ Panel {
 
         Spectrum {
           width: parent.width
-          height: Style.space(48)
+          height: Style.space(120)
           bands: root.radio ? root.radio.bands : []
           barColor: Color.accent
           restColor: root.contentForeground
