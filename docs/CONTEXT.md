@@ -1,4 +1,4 @@
-# NWSRadioStream — durable context
+# IceStream (repo: nwsradiostream) — durable context
 
 This file is the project memory. The GitHub repo is the shared copy; this chat is not.
 
@@ -7,11 +7,45 @@ Plugin id: `io.github.johnicboom.nwsradiostream`
 Local source: `/home/john/Work/nwsradiostream`
 Installed (bar): `~/.config/omarchy/plugins/io.github.johnicboom.nwsradiostream` — **plain copy, not a git clone**. Edits in Work do not update the bar until copied. `omarchy plugin update` will not work until the install is a clone.
 
+## Display name (decided)
+
+**IceStream.** Plugin id stays `io.github.johnicboom.nwsradiostream` until a marketplace listing forces a freeze.
+
+Description (honest, user-facing):
+
+> Directly stream NOAA Weather Radio broadcasts from volunteer relays on wxradio. If your stream doesn't have a wxradio stream, a Broadcastify link is provided, though those must be used in a browser, and can't be directly streamed through the plugin.
+
+Chrome copy says IceStream or volunteer Icecast relay — not “NWS Radio” as if it were the full network.
+
 ## What it is
 
-Omarchy 4 bar widget + keep-loaded service. Plays **volunteer internet relays** of NOAA Weather Radio. Not a VHF radio, not a life-safety tool, not an official NWS stream (NWS does not offer live NWR audio on the internet).
+Omarchy 4 bar widget + keep-loaded service. Plays **volunteer Icecast relays** of NOAA Weather Radio (wxradio.org). Not a VHF radio, not Broadcastify-in-process, not a life-safety tool, not an official NWS stream (NWS does not offer live NWR audio on the internet).
 
 `omarchy plugin add <url> --enable` is enough to install. `defaultSection` is `center`. `--after omarchy.weather` only places it next to weather; it is not required for the plugin to run.
+
+## IceStream polish (decided)
+
+- Left-click: open/close the panel. Right-click: play/stop (real stop: kill mpv; not pause).
+- No seek.
+- Own volume slider (mpv), so IceStream can sit in the background under other apps. Stock Audio widget stays system-wide.
+- PipeWire **peak** meter of this plugin’s playback (same idea as `PwNodePeakMonitor` on `omarchy.audio`), only while the popover is open. Not a fake FFT of a second Icecast download. Colors from `Color.accent` / theme tokens only.
+- Serialized transport: one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other.
+- Bar: icon-only plus live mark (sound arcs, not animated) while actually streaming — silence on NWR must not look like stopped.
+- Locate with no Icecast for the covering dish: show that covering station + Broadcastify for **that** call sign only (browser-only). Do not pretend Plano is “your” stream.
+- Status words: **Available** (we can play Icecast), **Offline** (we cannot play), **Browser-only** (Broadcastify listen page).
+- Keys: Space play/stop, arrows in the list, `/` or filter field, Esc close, Tab to neighboring bar panels.
+- Vertical bar: chip is a square `BarIconButton` slot; the radio mark should be fine. Still check `bar.vertical` once.
+
+## Coverage (what NWS will actually tell us)
+
+Not fully black-and-white at city scale.
+
+- **Point → covering transmitter:** `GET /points/{lat},{lon}` → `properties.nwr.transmitter`. For Wood Dale / 60191 this is **KWO39 Chicago**. That is the NWS association for that point.
+- **County SAME list:** `GET /radio/{callSign}` `sameCodes` / `counties`. **KXI58 Plano includes DuPage `017043`.** Wood Dale is in DuPage, so Plano is a SAME-alerting transmitter for that **county**. A county can have several transmitters; the county table lists each on its own row.
+- **RF reception:** not binary. NWS coverage is “about 40 miles, level terrain,” with partial-county remarks and PCA partitions in some offices. We cannot say “you will hear Plano in Wood Dale.”
+- **Icecast:** independent of both. KWO39 has no wxradio.org mount. KXI58 does. Playing Plano is a *nearby Icecast*, not “the covering station.”
+
+Locate UI: name KWO39 as covering; Icecast play only if that call sign has a mount; else Broadcastify for KWO39 if we have a page (32452 is dead). Do not auto-promote Plano as coverage.
 
 ## Architecture
 
