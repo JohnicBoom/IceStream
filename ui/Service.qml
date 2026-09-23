@@ -6,6 +6,7 @@ import "../lib/locate.js" as Locate
 import "../lib/match.js" as Match
 import "../lib/player.js" as Player
 import "../lib/broadcastify.js" as Broadcastify
+import "../lib/spectrum.js" as Spectrum
 
 Item {
   id: root
@@ -28,7 +29,7 @@ Item {
   property var nearbyCallSigns: []
   property var lastOrigin: null
   property var locateOptions: []
-  property int volume: 40
+  property int volume: 75
   readonly property string pluginId: "io.github.johnicboom.icestream"
   readonly property string userAgent: "IceStream (https://github.com/JohnicBoom/IceStream)"
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
@@ -390,7 +391,8 @@ Item {
       onRead: function(line) {
         try {
           var parsed = JSON.parse(line)
-          if (parsed && typeof parsed.peak === "number") root.playbackPeak = parsed.peak
+          if (parsed && typeof parsed.peak === "number")
+            root.playbackPeak = Spectrum.displayPeak(parsed.peak, root.volume)
           if (parsed && parsed.bands) root.bands = parsed.bands
         } catch (e) {}
       }

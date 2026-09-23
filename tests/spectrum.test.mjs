@@ -15,6 +15,14 @@ function sine(freq, rate, n) {
   return out
 }
 
+test("displayPeak undoes slider gain so 40% and 90% look the same", () => {
+  const source = 0.2
+  const at40 = spectrum.displayPeak(source * 0.4, 40)
+  const at90 = spectrum.displayPeak(source * 0.9, 90)
+  assert.ok(Math.abs(at40 - source) < 1e-9)
+  assert.ok(Math.abs(at90 - source) < 1e-9)
+})
+
 test("peakFromPcm is zero for silence and near one for a full-scale sine", () => {
   assert.equal(spectrum.peakFromPcm(new Float32Array(512)), 0)
   const samples = new Float32Array(512)

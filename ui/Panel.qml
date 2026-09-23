@@ -186,11 +186,20 @@ Panel {
           }
           Slider {
             id: volSlider
-            width: parent.width - Style.space(48)
+            width: parent.width - Style.space(80)
             from: 0
             to: 100
-            value: root.radio ? root.radio.volume : 40
+            value: root.radio ? root.radio.volume : 75
             onMoved: if (root.radio) root.radio.setVolume(value)
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(32)
+            text: Math.round(root.radio ? root.radio.volume : 75) + "%"
+            color: root.contentForeground
+            font.family: root.contentFont
+            font.pixelSize: Style.font.bodySmall
+            horizontalAlignment: Text.AlignRight
           }
         }
 

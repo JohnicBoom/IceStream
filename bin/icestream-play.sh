@@ -3,7 +3,7 @@
 # under `set -e` used to exit before mpv ran, which made every station Offline.
 sock=$1
 url=$2
-vol=${3:-40}
+vol=${3:-75}
 if [ -z "$sock" ] || [ -z "$url" ]; then
   echo "usage: icestream-play.sh <ipc-socket> <url> [volume]" >&2
   exit 2
