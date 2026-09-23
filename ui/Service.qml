@@ -25,14 +25,14 @@ Item {
   property var broadcastifyFeeds: []
   property string nearbyState: ""
   property var nearbyCallSigns: []
-  readonly property string pluginId: "io.github.johnicboom.nwsradiostream"
-  readonly property string userAgent: "nwsradiostream (https://github.com/johnicboom/nwsradiostream)"
+  readonly property string pluginId: "io.github.johnicboom.icestream"
+  readonly property string userAgent: "IceStream (https://github.com/JohnicBoom/IceStream)"
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
-  readonly property string ipcPath: runtimeDir + "/nwsradiostream.mpv.sock"
-  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/nwsradiostream/state.json"
-  readonly property string analyzerPath: filePath(Qt.resolvedUrl("../bin/nwsradiostream-analyze.mjs"))
-  readonly property string playScript: filePath(Qt.resolvedUrl("../bin/nwsradiostream-play.sh"))
-  readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/nwsradiostream-stop.sh"))
+  readonly property string ipcPath: runtimeDir + "/icestream.mpv.sock"
+  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/icestream/state.json"
+  readonly property string analyzerPath: filePath(Qt.resolvedUrl("../bin/icestream-analyze.mjs"))
+  readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
+  readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
   property int mpvEpoch: 0
   readonly property bool playing: playerState.status === "playing"
   readonly property bool connecting: playerState.status === "connecting"
@@ -56,7 +56,7 @@ Item {
 
   function persist() {
     var payload = JSON.stringify({ station: playerState.station })
-    persistProc.command = ["sh", "-c", "mkdir -p \"$HOME/.local/state/nwsradiostream\" && printf '%s\\n' \"$1\" > \"$HOME/.local/state/nwsradiostream/state.json\"", "nwsradiostream-state", payload]
+    persistProc.command = ["sh", "-c", "mkdir -p \"$HOME/.local/state/icestream\" && printf '%s\\n' \"$1\" > \"$HOME/.local/state/icestream/state.json\"", "icestream-state", payload]
     persistProc.running = true
   }
 
@@ -276,7 +276,7 @@ Item {
       return
     }
     analyzerProc.running = false
-    analyzerProc.command = ["sh", "-c", "ffmpeg -hide_banner -nostdin -loglevel error -i \"$1\" -ac 1 -ar 22050 -f f32le pipe:1 | node \"$2\"", "nwsradiostream-analyze", playerState.station.streamUrl, analyzerPath]
+    analyzerProc.command = ["sh", "-c", "ffmpeg -hide_banner -nostdin -loglevel error -i \"$1\" -ac 1 -ar 22050 -f f32le pipe:1 | node \"$2\"", "icestream-analyze", playerState.station.streamUrl, analyzerPath]
     Qt.callLater(function() { if (root.panelOpen && root.playing) analyzerProc.running = true })
   }
 

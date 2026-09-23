@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.johnicboom.nwsradiostream",
-  "name": "NWSRadioStream",
+  "id": "io.github.johnicboom.icestream",
+  "name": "IceStream",
   "version": "0.1.0",
   "author": "John Pappas",
   "license": "MIT",
-  "homepage": "https://github.com/johnicboom/nwsradiostream",
-  "description": "NOAA Weather Radio streams in the Omarchy bar",
+  "homepage": "https://github.com/JohnicBoom/IceStream",
+  "description": "Directly stream NOAA Weather Radio broadcasts from volunteer relays on wxradio. If there is no wxradio stream, a Broadcastify listen page may be offered (browser only).",
   "kinds": ["bar-widget", "service"],
   "keepLoaded": true,
   "entryPoints": {
@@ -14,8 +14,8 @@
     "service": "ui/Service.qml"
   },
   "barWidget": {
-    "displayName": "NWSRadioStream",
-    "description": "Play NOAA Weather Radio from the bar",
+    "displayName": "IceStream",
+    "description": "Volunteer Icecast relays of NOAA Weather Radio",
     "category": "Weather",
     "allowMultiple": false,
     "defaultSection": "center"

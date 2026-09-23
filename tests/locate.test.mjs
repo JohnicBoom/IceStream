@@ -110,6 +110,38 @@ test("parseNwsTransmitter reads a single /radio/{callSign} payload", () => {
   })
 })
 
+test("rankOnlineOptions prefers a closer working source over a farther Icecast mount", () => {
+  const origin = { latitude: 41.96336, longitude: -87.97896 }
+  const ranked = locate.rankOnlineOptions(origin, [
+    {
+      callSign: "KWO39",
+      covering: true,
+      latitude: 41.96336,
+      longitude: -87.97896,
+      streamUrl: null,
+      broadcastifyOnline: false
+    },
+    {
+      callSign: "KXI58",
+      latitude: 41.6062,
+      longitude: -88.4526,
+      streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58",
+      broadcastifyOnline: true
+    },
+    {
+      callSign: "KZZ81",
+      latitude: 41.6246,
+      longitude: -88.0042,
+      streamUrl: null,
+      broadcastifyUrl: "https://www.broadcastify.com/listen/feed/46216",
+      broadcastifyOnline: true
+    }
+  ])
+  assert.equal(ranked[0].callSign, "KZZ81")
+  assert.equal(ranked[1].callSign, "KXI58")
+  assert.equal(ranked[2].callSign, "KWO39")
+})
+
 test("haversineDistanceKm is shorter for Plano than Champaign from Wood Dale", () => {
   const woodDale = { latitude: 41.9602, longitude: -87.981 }
   const plano = locate.haversineDistanceKm(woodDale.latitude, woodDale.longitude, 41.6628, -88.5373)

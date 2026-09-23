@@ -37,9 +37,9 @@ test("a 1 kHz sine peaks in the band that contains 1 kHz", () => {
   assert.ok(bands[peak] > bands[15])
 })
 
-test("nwsradiostream-analyze writes one JSON line of 16 bands per FFT frame", () => {
+test("icestream-analyze writes one JSON line of 16 bands per FFT frame", () => {
   const pcm = sine(1000, spectrum.SAMPLE_RATE, spectrum.FFT_SIZE)
-  const result = spawnSync(process.execPath, [join(root, "bin/nwsradiostream-analyze.mjs")], {
+  const result = spawnSync(process.execPath, [join(root, "bin/icestream-analyze.mjs")], {
     input: Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength),
     encoding: "utf8"
   })

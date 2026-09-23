@@ -5,7 +5,7 @@ import qs.Commons
 
 BarWidget {
   id: root
-  moduleName: "io.github.johnicboom.nwsradiostream"
+  moduleName: "io.github.johnicboom.icestream"
 
   readonly property var radioService: bar && bar.shell && bar.shell.serviceFor
     ? bar.shell.serviceFor(moduleName)
@@ -69,7 +69,7 @@ BarWidget {
     tooltipText: {
       var station = root.radioService ? root.radioService.station : null
       var status = root.playing ? "playing" : (root.radioService && root.radioService.playerState ? root.radioService.playerState.status : "idle")
-      if (!station || !station.callSign) return "NWSRadioStream — " + status
+      if (!station || !station.callSign) return "IceStream — " + status
       var bits = [station.callSign]
       if (station.siteName) bits.push(station.siteName)
       if (station.frequency) bits.push(station.frequency + " MHz")

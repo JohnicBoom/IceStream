@@ -6,7 +6,7 @@ import qs.Ui
 
 Panel {
   id: root
-  moduleName: "io.github.johnicboom.nwsradiostream"
+  moduleName: "io.github.johnicboom.icestream"
   manageIpc: false
 
   property var anchorItem: null
