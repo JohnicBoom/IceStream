@@ -166,10 +166,10 @@ Panel {
           }
         }
 
-        PeakMeter {
+        Spectrum {
           width: parent.width
-          height: Style.space(10)
-          peak: root.radio ? root.radio.playbackPeak : 0
+          height: Style.space(48)
+          bands: root.radio ? root.radio.bands : []
           barColor: Color.accent
           restColor: root.contentForeground
         }

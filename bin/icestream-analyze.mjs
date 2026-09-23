@@ -11,7 +11,7 @@ let pending = Buffer.alloc(0)
 
 function emitFrame(buf) {
   const samples = new Float32Array(buf.buffer, buf.byteOffset, spectrum.FFT_SIZE)
-  const bands = spectrum.bandsFromPcm(samples, spectrum.SAMPLE_RATE)
+  const bands = spectrum.relativeBands(spectrum.bandsFromPcm(samples, spectrum.SAMPLE_RATE))
   process.stdout.write(JSON.stringify({ bands: bands }) + "\n")
 }
 

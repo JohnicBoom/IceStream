@@ -296,7 +296,7 @@ Item {
       return
     }
     analyzerProc.running = false
-    analyzerProc.command = ["sh", "-c", "pw-cat --record --target icestream --format f32 --rate 8000 --channels 1 - 2>/dev/null | node \"$1\"", "icestream-peak", peakScript]
+    analyzerProc.command = ["sh", "-c", "pw-cat --record --target icestream --format f32 --rate 22050 --channels 1 - 2>/dev/null | node \"$1\"", "icestream-analyze", analyzerPath]
     Qt.callLater(function() { if (root.panelOpen && root.playing) analyzerProc.running = true })
   }
 

@@ -15,6 +15,18 @@ function sine(freq, rate, n) {
   return out
 }
 
+test("relativeBands is unchanged if the whole frame is scaled", () => {
+  const shape = [0.1, 0.4, 0.2, 0.05]
+  const quiet = shape.map((v) => v * 0.4)
+  const loud = shape.map((v) => v * 0.9)
+  const a = spectrum.relativeBands(quiet)
+  const b = spectrum.relativeBands(loud)
+  for (let i = 0; i < shape.length; i++) {
+    assert.ok(Math.abs(a[i] - b[i]) < 1e-9)
+  }
+  assert.ok(Math.abs(a[1] - 1) < 1e-9)
+})
+
 test("displayPeak undoes slider gain so 40% and 90% look the same", () => {
   const source = 0.2
   const at40 = spectrum.displayPeak(source * 0.4, 40)
