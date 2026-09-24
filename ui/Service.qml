@@ -183,6 +183,21 @@ Item {
     locateQuery(zipText)
   }
 
+  function sameOrigin(a, b) {
+    if (!a || !b) return false
+    return Math.abs(Number(a.latitude) - Number(b.latitude)) < 0.00015 &&
+      Math.abs(Number(a.longitude) - Number(b.longitude)) < 0.00015
+  }
+
+  function locateOnOpen() {
+    var typed = Locate.parsePlaceQuery(zipText)
+    if (typed && typed.kind === "zip") return
+    var weather = Locate.parseWeatherLocation(weatherRaw())
+    if (weather.latitude === null || weather.longitude === null) return
+    if (sameOrigin(lastOrigin, weather) && locateOptions && locateOptions.length) return
+    locateCoords(weather.latitude, weather.longitude, weather.name || "weather location")
+  }
+
   function transmitterFor(callSign) {
     var needle = String(callSign || "").toUpperCase()
     for (var i = 0; i < transmitters.length; i++) {

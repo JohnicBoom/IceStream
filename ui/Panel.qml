@@ -22,6 +22,7 @@ Panel {
     root.controller.show()
     Qt.callLater(function() {
       if (root.opened) setCenterHoverRevealSuppressed(true)
+      if (root.radio && root.radio.locateOnOpen) root.radio.locateOnOpen()
     })
   }
 
