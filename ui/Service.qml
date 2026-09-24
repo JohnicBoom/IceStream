@@ -156,8 +156,13 @@ Item {
 
   function locateCoords(lat, lon, label) {
     lastOrigin = { latitude: Number(lat), longitude: Number(lon) }
-    locateMessage = "Finding the covering station" + (label ? " for " + label : "") + "…"
-    pointsProc.command = ["curl", "-fsS", "--max-time", "8", "-A", userAgent, "-H", "Accept: application/geo+json", "https://api.weather.gov/points/" + lat + "," + lon]
+    var url = Locate.nwsPointUrl(lat, lon)
+    if (!url) {
+      locateMessage = "Weather location is missing coordinates."
+      return
+    }
+    locateMessage = "Finding covering station from weather coordinates" + (label ? " (" + label + ")" : "") + "…"
+    pointsProc.command = ["curl", "-fsSL", "--max-redirs", "3", "--max-time", "8", "-A", userAgent, "-H", "Accept: application/geo+json", url]
     pointsProc.running = true
   }
 

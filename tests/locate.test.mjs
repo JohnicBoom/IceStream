@@ -42,6 +42,10 @@ test("parseZipLookup returns null for unknown or unparseable ZIP payloads", () =
   assert.equal(locate.parseZipLookup('{"places":[]}'), null)
 })
 
+test("nwsPointUrl rounds to four decimals so NWS does not 301 the request", () => {
+  assert.equal(locate.nwsPointUrl(41.96336, -87.97896), "https://api.weather.gov/points/41.9634,-87.9790")
+})
+
 test("parseNwsPoints reads the covering NWR transmitter", () => {
   const point = locate.parseNwsPoints(readFixture("nws-points.json"))
   assert.deepEqual(point, {
