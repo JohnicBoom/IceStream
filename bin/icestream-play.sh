@@ -9,8 +9,6 @@ if [ -z "$sock" ] || [ -z "$url" ]; then
   exit 2
 fi
 rm -f "$sock"
-# Replace any previous plugin-owned mpv so play/stop cannot orphan a player.
-pkill -f '/usr/bin/mpv .*--audio-client-name=IceStream' >/dev/null 2>&1 || true
 export PIPEWIRE_PROPS="{ application.name=IceStream }"
 exec /usr/bin/mpv \
   --no-video \

@@ -89,6 +89,13 @@ test("stop returns to idle but keeps the last station", () => {
   assert.equal(stopped.error, null)
 })
 
+test("isPlayingCallSign is true only for the live station", () => {
+  const playing = player.playAck(player.play(player.initialState(), phoenix), 1)
+  assert.equal(player.isPlayingCallSign(playing, "KEC94"), true)
+  assert.equal(player.isPlayingCallSign(playing, "KXI58"), false)
+  assert.equal(player.isPlayingCallSign(player.initialState(), "KEC94"), false)
+})
+
 test("togglePlay starts then stops instead of pausing", () => {
   const started = player.togglePlay(player.initialState(), phoenix)
   assert.equal(started.status, "connecting")

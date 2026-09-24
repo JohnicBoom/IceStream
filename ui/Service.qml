@@ -33,6 +33,7 @@ Item {
   readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
   readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
   property int mpvEpoch: 0
+  property int mpvAliveEpoch: 0
   readonly property bool playing: playerState.status === "playing"
   readonly property bool connecting: playerState.status === "connecting"
   readonly property var station: playerState.station
@@ -57,6 +58,10 @@ Item {
   function playStation(station) {
     if (!station || !station.streamUrl) {
       locateMessage = station ? (station.callSign + " covers you, but no live stream is listed.") : "No station selected."
+      return
+    }
+    if (Player.isPlayingCallSign(playerState, station.callSign)) {
+      stop()
       return
     }
     locateMessage = "Connecting to " + station.callSign + "…"
@@ -331,19 +336,23 @@ Item {
       id: mpvErr
       waitForEnd: true
     }
-    onStarted: root.markLive()
+    onStarted: {
+      root.mpvAliveEpoch = root.mpvEpoch
+      root.markLive()
+    }
     onRunningChanged: {
-      if (running) root.markLive()
+      if (running) {
+        root.mpvAliveEpoch = root.mpvEpoch
+        root.markLive()
+      }
     }
     onExited: function(exitCode) {
       if (root.stoppingMpv) return
+      if (root.mpvAliveEpoch !== root.mpvEpoch) return
       if (mpvProc.running) return
       if (root.playerState.status === "idle" || root.playerState.status === "paused") return
       if (root.playerState.status === "connecting" || root.playerState.status === "playing") {
-        root.playerState = Player.playFail(root.playerState, root.playerState.playToken, "Stream stopped.")
-        var err = String(mpvErr.text || "").replace(/^\s+|\s+$/g, "")
-        var name = root.station && root.station.callSign ? root.station.callSign : "that stream"
-        root.locateMessage = err ? ("Could not play " + name + ": " + err) : ("Could not play " + name + ".")
+        root.playerState = Player.stop(root.playerState)
         root.killPlayback()
       }
     }
