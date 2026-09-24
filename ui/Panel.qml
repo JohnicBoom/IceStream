@@ -168,11 +168,10 @@ Panel {
 
         Spectrum {
           width: parent.width
-          height: Style.space(120)
+          height: Style.space(96)
           bands: root.radio ? root.radio.bands : []
           barColor: Color.accent
           restColor: root.contentForeground
-          strikeColor: Color.urgent
         }
 
         Row {
