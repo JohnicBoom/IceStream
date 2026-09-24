@@ -16,7 +16,6 @@ Item {
   property string locateMessage: ""
   property string searchQuery: ""
   property string zipText: ""
-  property string geocodeStateHint: ""
   property string pendingCovering: ""
   property bool stoppingMpv: false
   property var broadcastifyCatalog: []
@@ -155,13 +154,6 @@ Item {
     zipProc.running = true
   }
 
-  function locateCity(name, state) {
-    geocodeStateHint = state || ""
-    locateMessage = "Looking up " + name + (state ? ", " + state : "") + "…"
-    geocodeProc.command = ["curl", "-fsS", "--max-time", "8", "https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(name) + "&count=8&language=en&format=json"]
-    geocodeProc.running = true
-  }
-
   function locateCoords(lat, lon, label) {
     lastOrigin = { latitude: Number(lat), longitude: Number(lon) }
     locateMessage = "Finding the covering station" + (label ? " for " + label : "") + "…"
@@ -179,16 +171,12 @@ Item {
       locateZip(parsed.zip)
       return
     }
-    if (parsed && parsed.kind === "city") {
-      locateCity(parsed.name, parsed.state)
-      return
-    }
     var weather = Locate.parseWeatherLocation(weatherRaw())
     if (weather.latitude !== null && weather.longitude !== null) {
       locateCoords(weather.latitude, weather.longitude, weather.name)
       return
     }
-    locateMessage = "Enter a US ZIP code or a city, like Wood Dale, IL."
+    locateMessage = "Enter a 5-digit US ZIP code."
   }
 
   function locateClosest() {
@@ -388,24 +376,6 @@ Item {
     }
     onExited: function(exitCode) {
       if (exitCode !== 0) root.locateMessage = "ZIP lookup failed."
-    }
-  }
-
-  Process {
-    id: geocodeProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var place = Locate.parseGeocodingResults(text, root.geocodeStateHint)
-        if (!place) {
-          root.locateMessage = "Could not find that city."
-          return
-        }
-        root.locateCoords(place.latitude, place.longitude, place.name)
-      }
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0) root.locateMessage = "City lookup failed."
     }
   }
 

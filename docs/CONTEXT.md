@@ -54,7 +54,7 @@ Locate UI: KWO39 is covering (Offline Icecast, Broadcastify page dead). Still of
 - **lib/*.js**: catalog, locate, match, player state, spectrum, Broadcastify listen-page map. Node-testable. QML imports the same files.
 - **Playback:** `bin/icestream-play.sh` → `exec /usr/bin/mpv` on the Icecast listen URL (`http://wxradio.org:8000/<mount>`). Do **not** rewrite to `https://wxradio.org/<mount>` as the play URL; that failed in mpv even when curl GET worked. Icecast often **400s HEAD**; probe with GET.
 - **Stop:** `bin/icestream-stop.sh` pkills only `mpv` with `--audio-client-name=icestream`. Call on stop, on play-fail, on Service destruction, and while UI is idle/error so orphans cannot outlive the UI.
-- **Locate:** ZIP (Zippopotam) or city (Open-Meteo) → `api.weather.gov/points/{lat},{lon}` → `properties.nwr.transmitter`. That is the **covering** dish, not haversine-nearest. Then `GET /radio/{callSign}` for metadata. `GET /points/…/radio` is SSML forecast speech, **not** the radio stream.
+- **Locate:** US ZIP (Zippopotam) or Omarchy weather.json coords. No city-name search (ambiguous; NWR is US-only). Then `api.weather.gov/points/{lat},{lon}` → `properties.nwr.transmitter`. That is the **covering** dish, not haversine-nearest. Then `GET /radio/{callSign}` for metadata. `GET /points/…/radio` is SSML forecast speech, **not** the radio stream.
 - **List ranking after locate:** `preferNearby` — overlapping call signs first, then same state, then the rest. Do not leave the raw Icecast order (AK/AZ/CA before IL).
 - **Theme:** `Color` / `Style` singletons. Do not import `QtQuick.Effects` (Omarchy blackholes it; the bar icon vanished). Draw the radio with `QtQuick.Shapes`.
 - **No spectrograph** in the popover (removed). Bar live mark only.

@@ -321,7 +321,7 @@ Panel {
           TextField {
             id: zipField
             width: parent.width - locateButton.width - Style.space(6)
-            placeholderText: "Enter a ZIP code or city name"
+            placeholderText: "US ZIP code"
             foreground: root.contentForeground
             font.family: root.contentFont
             onTextChanged: if (root.radio) root.radio.zipText = text
