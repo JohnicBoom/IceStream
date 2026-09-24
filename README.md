@@ -6,6 +6,8 @@ Directly stream broadcasts from [wxradio.org](https://wxradio.org). If a transmi
 
 This is **not** a dedicated NOAA Weather Radio receiver and is not for protection of life or property. Only a subset of NWR transmitters have a volunteer Icecast mount.
 
+![IceStream popover](preview.png)
+
 ## Install
 
 Omarchy 4. Review the source, then:
@@ -14,20 +16,23 @@ Omarchy 4. Review the source, then:
 omarchy plugin add https://github.com/JohnicBoom/IceStream.git --enable
 ```
 
-Needs `mpv`, `ffmpeg`, `curl`, and Node on PATH (all present on a stock Omarchy install).
-
-Design notes: [docs/CONTEXT.md](docs/CONTEXT.md).
+Runtime needs **mpv** and **curl** (both ship with Omarchy).
 
 ## Use
 
 - Left-click the bar radio: open or close the popover
 - Right-click: play/stop
-- Middle-click: find the covering station from the Omarchy weather location, or from a ZIP/city
-- Space in the popover: play/stop
+- Middle-click, or opening the panel: locate from the Omarchy weather coordinates when those are set
+- ZIP field: 5-digit US ZIP if you want a different place
+- Space: play/stop
 - Escape: close
-- **Browser-only**: Broadcastify listen page, when we have a known feed id
+- **Available**: play in IceStream
+- **Browser-only**: opens Broadcastify in the browser
+- **Offline**: no Icecast and no live Broadcastify page
 
-Closing the panel does not stop audio until you stop playback.
+Closing the panel does not stop audio. Right-click the bar or press stop.
+
+Volume in the popover is IceStream-only, so other apps can stay louder.
 
 ## Develop
 
@@ -35,10 +40,9 @@ Closing the panel does not stop audio until you stop playback.
 cd IceStream
 node --test tests/*.test.mjs
 omarchy plugin validate .
-qmllint -I "$OMARCHY_PATH/shell" ui/*.qml
 ```
 
-Or `bash scripts/check.sh`. Domain logic is tested first (`lib/`); QML is presentation.
+Node is only for tests. `bash scripts/check.sh` runs tests and `omarchy plugin validate`.
 
 ## Remove
 
