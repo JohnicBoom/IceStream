@@ -83,7 +83,7 @@ Panel {
 
       Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Space) {
-          if (root.radio) root.radio.togglePlay()
+          if (root.radio && (root.playing || root.radio.connecting)) root.radio.stop()
           event.accepted = true
         }
       }
@@ -107,7 +107,7 @@ Panel {
           spacing: Style.space(8)
 
           Column {
-            width: parent.width - playButton.width - Style.space(8)
+            width: parent.width - (stopButton.visible ? stopButton.width + Style.space(8) : 0)
             spacing: Style.space(2)
 
             Text {
@@ -140,27 +140,30 @@ Panel {
           }
 
           Rectangle {
-            id: playButton
-            width: Style.space(36)
+            id: stopButton
+            visible: root.playing || (root.radio && root.radio.connecting)
+            width: visible ? Style.space(36) : 0
             height: Style.space(36)
             radius: Style.space(6)
-            color: playMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
-            border.width: 1
+            color: stopMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+            border.width: visible ? 1 : 0
             border.color: Color.accent
 
             Text {
               anchors.centerIn: parent
-              text: root.playing ? "■" : "▶"
+              visible: stopButton.visible
+              text: "■"
               color: Color.accent
               font.pixelSize: Style.font.subtitle
             }
 
             MouseArea {
-              id: playMouse
+              id: stopMouse
               anchors.fill: parent
+              enabled: stopButton.visible
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onClicked: if (root.radio) root.radio.togglePlay()
+              onClicked: if (root.radio) root.radio.stop()
             }
           }
         }
