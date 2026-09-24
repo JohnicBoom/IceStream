@@ -28,7 +28,7 @@ Omarchy 4 bar widget + keep-loaded service. Plays **volunteer Icecast relays** o
 - Left-click: open/close the panel. Right-click: play/stop (real stop: kill mpv; not pause).
 - No seek.
 - Own volume slider (mpv), so IceStream can sit in the background under other apps. Stock Audio widget stays system-wide.
-- PipeWire **peak** meter of this plugin’s playback (same idea as `PwNodePeakMonitor` on `omarchy.audio`), only while the popover is open. Not a fake FFT of a second Icecast download. Colors from `Color.accent` / theme tokens only.
+- No popover visualizer. The panel is for finding a station and starting it; then it stays out of the way. Playing state on the bar is the live mark (sound arcs).
 - Serialized transport: one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other.
 - Bar: icon-only plus live mark (sound arcs, not animated) while actually streaming — silence on NWR must not look like stopped.
 - Locate: always name the NWS **covering** transmitter. Rank *online* options (wxradio Icecast or live Broadcastify listen page) by geocoded transmitter site distance — not RF maps. For Wood Dale / 60191: KWO39 covering, Icecast offline, Broadcastify offline; closest working online is **KZZ81 Lockport** (Broadcastify, ~38 km); **KXI58 Plano** is Icecast Available but farther (~56 km). Offer covering (honest Offline) plus those closer-to-farther online options. No map view for now.
@@ -57,7 +57,7 @@ Locate UI: KWO39 is covering (Offline Icecast, Broadcastify page dead). Still of
 - **Locate:** ZIP (Zippopotam) or city (Open-Meteo) → `api.weather.gov/points/{lat},{lon}` → `properties.nwr.transmitter`. That is the **covering** dish, not haversine-nearest. Then `GET /radio/{callSign}` for metadata. `GET /points/…/radio` is SSML forecast speech, **not** the radio stream.
 - **List ranking after locate:** `preferNearby` — overlapping call signs first, then same state, then the rest. Do not leave the raw Icecast order (AK/AZ/CA before IL).
 - **Theme:** `Color` / `Style` singletons. Do not import `QtQuick.Effects` (Omarchy blackholes it; the bar icon vanished). Draw the radio with `QtQuick.Shapes`.
-- **Spectrograph:** popover only, while open **and** playing. Analyzer is ffmpeg PCM → `bin/icestream-analyze.mjs`.
+- **No spectrograph** in the popover (removed). Bar live mark only.
 
 ## Tests and validate
 

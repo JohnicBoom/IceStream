@@ -6,7 +6,6 @@ import "../lib/locate.js" as Locate
 import "../lib/match.js" as Match
 import "../lib/player.js" as Player
 import "../lib/broadcastify.js" as Broadcastify
-import "../lib/spectrum.js" as Spectrum
 
 Item {
   id: root
@@ -14,9 +13,6 @@ Item {
   property var playerState: Player.initialState()
   property var streams: []
   property var transmitters: []
-  property var bands: []
-  property real playbackPeak: 0
-  property bool panelOpen: false
   property string locateMessage: ""
   property string searchQuery: ""
   property string zipText: ""
@@ -35,8 +31,6 @@ Item {
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
   readonly property string ipcPath: runtimeDir + "/icestream.mpv.sock"
   readonly property string statePath: Quickshell.env("HOME") + "/.local/state/icestream/state.json"
-  readonly property string analyzerPath: filePath(Qt.resolvedUrl("../bin/icestream-analyze.mjs"))
-  readonly property string peakScript: filePath(Qt.resolvedUrl("../bin/icestream-peak.mjs"))
   readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
   readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
   property int mpvEpoch: 0
@@ -55,11 +49,6 @@ Item {
     return s
   }
 
-  function setPanelOpen(open) {
-    panelOpen = !!open
-    syncAnalyzer()
-  }
-
   function persist() {
     var payload = JSON.stringify({ station: playerState.station })
     persistProc.command = ["sh", "-c", "mkdir -p \"$HOME/.local/state/icestream\" && printf '%s\\n' \"$1\" > \"$HOME/.local/state/icestream/state.json\"", "icestream-state", payload]
@@ -75,14 +64,12 @@ Item {
     playerState = Player.play(playerState, station)
     persist()
     startMpv()
-    syncAnalyzer()
   }
 
   function markLive() {
     if (playerState.status !== "connecting") return
     playerState = Player.playAck(playerState, playerState.playToken)
     locateMessage = ""
-    syncAnalyzer()
   }
 
   function startMpv() {
@@ -136,7 +123,6 @@ Item {
     playerState = Player.stop(playerState)
     mpvProc.running = false
     killPlayback()
-    syncAnalyzer()
   }
 
   function refreshBroadcastify(callSign, sameCodes) {
@@ -288,18 +274,6 @@ Item {
     }
   }
 
-  function syncAnalyzer() {
-    var shouldRun = panelOpen && playing
-    if (!shouldRun) {
-      analyzerProc.running = false
-      playbackPeak = 0
-      return
-    }
-    analyzerProc.running = false
-    analyzerProc.command = ["sh", "-c", "pw-cat --record --target icestream --format f32 --rate 22050 --channels 1 - 2>/dev/null | node \"$1\"", "icestream-analyze", analyzerPath]
-    Qt.callLater(function() { if (root.panelOpen && root.playing) analyzerProc.running = true })
-  }
-
   Component.onCompleted: refreshCatalog()
   Component.onDestruction: root.killPlayback()
 
@@ -364,7 +338,6 @@ Item {
         root.locateMessage = err ? ("Could not play " + name + ": " + err) : ("Could not play " + name + ".")
         root.killPlayback()
       }
-      root.syncAnalyzer()
     }
   }
 
@@ -382,21 +355,6 @@ Item {
     running: root.connecting && mpvProc.running
     repeat: true
     onTriggered: root.markLive()
-  }
-
-  Process {
-    id: analyzerProc
-    stdinEnabled: false
-    stdout: SplitParser {
-      onRead: function(line) {
-        try {
-          var parsed = JSON.parse(line)
-          if (parsed && typeof parsed.peak === "number")
-            root.playbackPeak = Spectrum.displayPeak(parsed.peak, root.volume)
-          if (parsed && parsed.bands) root.bands = parsed.bands
-        } catch (e) {}
-      }
-    }
   }
 
   Process {

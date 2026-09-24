@@ -19,7 +19,6 @@ Panel {
   readonly property string contentFont: bar ? bar.fontFamily : Style.font.family
 
   function open() {
-    if (radio && radio.setPanelOpen) radio.setPanelOpen(true)
     root.controller.show()
     Qt.callLater(function() {
       if (root.opened) setCenterHoverRevealSuppressed(true)
@@ -28,7 +27,6 @@ Panel {
 
   function close() {
     setCenterHoverRevealSuppressed(false)
-    if (radio && radio.setPanelOpen) radio.setPanelOpen(false)
     root.controller.hide()
   }
 
@@ -164,14 +162,6 @@ Panel {
               onClicked: if (root.radio) root.radio.togglePlay()
             }
           }
-        }
-
-        Spectrum {
-          width: parent.width
-          height: Style.space(96)
-          bands: root.radio ? root.radio.bands : []
-          barColor: Color.accent
-          restColor: root.contentForeground
         }
 
         Row {
