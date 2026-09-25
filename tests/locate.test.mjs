@@ -63,6 +63,15 @@ test("parseNwsPoints returns null when nwr is missing or the body is junk", () =
   assert.equal(locate.parseNwsPoints(JSON.stringify({ properties: {} })), null)
 })
 
+test("parseWttrNearestArea reads IP auto-detect coordinates from wttr.in j1", () => {
+  const place = locate.parseWttrNearestArea(readFixture("wttr-j1-lombard.json"))
+  assert.deepEqual(place, {
+    name: "Lombard",
+    latitude: 41.88,
+    longitude: -88.008
+  })
+})
+
 test("parseWeatherLocation reads Omarchy weather.json coordinates", () => {
   assert.deepEqual(
     locate.parseWeatherLocation('{"name":"Atlanta","latitude":33.75,"longitude":-84.39}'),

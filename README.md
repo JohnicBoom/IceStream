@@ -22,7 +22,7 @@ Runtime needs **mpv** and **curl** (both ship with Omarchy).
 
 - Left-click the bar radio: open or close the popover
 - Right-click: play/stop
-- Middle-click, or opening the panel: locate from the Omarchy weather coordinates when those are set
+- Middle-click, or opening the panel: locate from Omarchy weather coordinates, or the same IP city weather shows before you set one
 - ZIP field: 5-digit US ZIP if you want a different place
 - Space or the stop square: stop while playing (pick an Available stream to start)
 - Escape: close

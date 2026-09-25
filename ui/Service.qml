@@ -186,11 +186,18 @@ Item {
       locateCoords(weather.latitude, weather.longitude, weather.name)
       return
     }
-    locateMessage = "Enter a 5-digit US ZIP code."
+    locateFromNetwork()
   }
 
   function locateClosest() {
     locateQuery(zipText)
+  }
+
+  function locateFromNetwork() {
+    locateMessage = "Finding covering station from network location…"
+    wttrProc.running = false
+    wttrProc.command = ["curl", "-fsS", "--max-time", "10", "https://wttr.in/?format=j1"]
+    Qt.callLater(function() { wttrProc.running = true })
   }
 
   function sameOrigin(a, b) {
@@ -203,9 +210,13 @@ Item {
     var typed = Locate.parsePlaceQuery(zipText)
     if (typed && typed.kind === "zip") return
     var weather = Locate.parseWeatherLocation(weatherRaw())
-    if (weather.latitude === null || weather.longitude === null) return
-    if (sameOrigin(lastOrigin, weather) && locateOptions && locateOptions.length) return
-    locateCoords(weather.latitude, weather.longitude, weather.name || "weather location")
+    if (weather.latitude !== null && weather.longitude !== null) {
+      if (sameOrigin(lastOrigin, weather) && locateOptions && locateOptions.length) return
+      locateCoords(weather.latitude, weather.longitude, weather.name || "weather location")
+      return
+    }
+    if (locateOptions && locateOptions.length) return
+    locateFromNetwork()
   }
 
   function transmitterFor(callSign) {
@@ -405,6 +416,24 @@ Item {
     }
     onExited: function(exitCode) {
       if (exitCode !== 0) root.locateMessage = "ZIP lookup failed."
+    }
+  }
+
+  Process {
+    id: wttrProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var place = Locate.parseWttrNearestArea(text)
+        if (!place) {
+          root.locateMessage = "Could not detect location. Enter a US ZIP code."
+          return
+        }
+        root.locateCoords(place.latitude, place.longitude, place.name)
+      }
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) root.locateMessage = "Could not detect location. Enter a US ZIP code."
     }
   }
 

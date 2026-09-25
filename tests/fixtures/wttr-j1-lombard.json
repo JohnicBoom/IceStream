@@ -1,0 +1,10 @@
+{
+  "nearest_area": [
+    {
+      "areaName": [{ "value": "Lombard" }],
+      "region": [{ "value": "Illinois" }],
+      "latitude": "41.880",
+      "longitude": "-88.008"
+    }
+  ]
+}
