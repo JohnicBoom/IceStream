@@ -110,3 +110,28 @@ test("stationFromCovering merges NWS metadata with the preferred stream", () => 
     alt: false
   })
 })
+
+test("stationFromStream fills frequency and site from NOAA transmitter data", () => {
+  const stream = { callSign: "KXI58", state: "IL", siteName: "Plano", streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58", mount: "IL-Plano-KXI58", alt: false }
+  const tx = [{ callSign: "KXI58", frequency: "162.400", siteName: "Plano", siteCity: "Yorkville", siteState: "IL", sameCodes: ["017043"] }]
+  assert.deepEqual(match.stationFromStream(stream, tx), {
+    callSign: "KXI58",
+    frequency: "162.400",
+    siteName: "Plano",
+    siteCity: "Yorkville",
+    siteState: "IL",
+    streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58",
+    mount: "IL-Plano-KXI58",
+    alt: false
+  })
+})
+
+test("stationFromStream falls back to the mount name without NOAA data", () => {
+  const stream = { callSign: "ZZZ00", state: "XX", siteName: "Nowhere", streamUrl: "http://x", mount: "XX-Nowhere-ZZZ00-alt", alt: true }
+  const station = match.stationFromStream(stream, [])
+  assert.equal(station.frequency, "")
+  assert.equal(station.siteName, "Nowhere")
+  assert.equal(station.siteState, "XX")
+  assert.equal(station.alt, true)
+  assert.equal(match.stationFromStream(null, []), null)
+})

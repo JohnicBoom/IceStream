@@ -14,7 +14,14 @@ rm -f "$sock"
 export PIPEWIRE_PROPS="{ application.name=IceStream }"
 # --script-opts=icestream=1 is a harmless unique tag so icestream-stop.sh
 # only ever kills mpv processes this plugin started.
+# --no-config: the user's mpv.conf, scripts, and key bindings must not change
+#   IceStream playback. --ytdl=no: a dead Icecast mount should fail in
+#   ~0.5 s, not after a yt-dlp attempt (~2.3 s).
+# Cache: live stream with no seeking, so keep no back-buffer and only a
+#   small read-ahead instead of mpv's defaults (tens of MiB over hours).
 exec "$mpv_bin" \
+  --no-config \
+  --ytdl=no \
   --no-video \
   --no-terminal \
   --really-quiet \
@@ -26,5 +33,7 @@ exec "$mpv_bin" \
   --loop-playlist=inf \
   --network-timeout=15 \
   --cache=yes \
+  --demuxer-max-back-bytes=0 \
+  --demuxer-max-bytes=4MiB \
   --volume="$vol" \
   -- "$url"

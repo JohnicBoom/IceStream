@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "../lib/version.js" as Version
 
 Panel {
   id: root
@@ -20,17 +21,41 @@ Panel {
   readonly property string contentFont: bar ? bar.fontFamily : Style.font.family
 
   // Keyboard cursor over one combined list: closest stations first, then
-  // the filtered relay list. -1 means no row is highlighted.
+  // the filtered relay list. -1 means no row is highlighted. cursorKey is
+  // the highlighted station's identity, so the highlight follows it when a
+  // locate or filter reorders the rows (and clears if it disappears).
   property int cursorIndex: -1
+  property string cursorKey: ""
   property bool returnPending: false
   readonly property var options: radio && radio.locateOptions ? radio.locateOptions : []
   readonly property var streamRows: radio && radio.visibleStreams ? radio.visibleStreams : []
   readonly property int optionCount: options.length
   readonly property int rowCount: optionCount + streamRows.length
 
-  onRowCountChanged: if (cursorIndex >= rowCount) cursorIndex = rowCount - 1
+  onOptionsChanged: root.cursorIndex = root.indexOfKey(root.cursorKey)
+  onStreamRowsChanged: root.cursorIndex = root.indexOfKey(root.cursorKey)
+
+  function keyAt(i) {
+    if (i < 0 || i >= root.rowCount) return ""
+    if (i < root.optionCount) return "option:" + root.options[i].callSign
+    return "stream:" + root.streamRows[i - root.optionCount].streamUrl
+  }
+
+  function indexOfKey(key) {
+    if (!key) return -1
+    for (var i = 0; i < root.rowCount; i++) {
+      if (root.keyAt(i) === key) return i
+    }
+    return -1
+  }
+
+  function setCursor(i) {
+    root.cursorIndex = i
+    root.cursorKey = root.keyAt(i)
+  }
 
   function open() {
+    if (root.hostWidget && root.hostWidget.checkForUpdate) root.hostWidget.checkForUpdate()
     root.controller.show()
     Qt.callLater(function() {
       if (root.opened) setCenterHoverRevealSuppressed(true)
@@ -73,15 +98,13 @@ Panel {
   }
 
   function activateOption(opt) {
-    if (!root.radio || !opt) return
-    if (opt.streamUrl) root.radio.playStation(opt)
-    else if (opt.broadcastifyUrl) root.radio.openBroadcastify({ url: opt.broadcastifyUrl, feedId: 0 })
+    if (root.radio && opt) root.radio.activateOption(opt)
   }
 
   function moveCursor(dy) {
     if (root.rowCount <= 0) return
     var next = root.cursorIndex < 0 ? (dy > 0 ? 0 : root.rowCount - 1) : root.cursorIndex + dy
-    root.cursorIndex = Math.max(0, Math.min(root.rowCount - 1, next))
+    root.setCursor(Math.max(0, Math.min(root.rowCount - 1, next)))
     root.ensureCursorVisible()
   }
 
@@ -114,7 +137,7 @@ Panel {
 
   function focusList(cursor) {
     if (cursor !== undefined) {
-      root.cursorIndex = cursor
+      root.setCursor(cursor)
       root.ensureCursorVisible()
     }
     keyCatcher.forceActiveFocus()
@@ -171,6 +194,17 @@ Panel {
         id: content
         width: scroll.width
         spacing: Style.space(8)
+
+        Text {
+          width: parent.width
+          visible: root.hostWidget !== null && root.hostWidget.serviceStale === true
+          text: root.hostWidget ? root.hostWidget.restartNotice : ""
+          color: Color.accent
+          font.family: root.contentFont
+          font.pixelSize: Style.font.body
+          font.bold: true
+          wrapMode: Text.WordWrap
+        }
 
         Row {
           width: parent.width
@@ -319,7 +353,7 @@ Panel {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                  root.cursorIndex = optionRow.index
+                  root.setCursor(optionRow.index)
                   root.activateOption(optionRow.modelData)
                 }
               }
@@ -394,7 +428,7 @@ Panel {
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               onClicked: {
-                root.cursorIndex = root.optionCount + streamRow.index
+                root.setCursor(root.optionCount + streamRow.index)
                 if (root.radio) root.radio.selectStream(streamRow.modelData)
               }
             }
@@ -458,6 +492,22 @@ Panel {
           font.family: root.contentFont
           font.pixelSize: Style.font.body
           wrapMode: Text.WordWrap
+        }
+
+        // Running code version; shows the installed one too when a shell
+        // restart is still needed to load it.
+        Text {
+          width: parent.width
+          horizontalAlignment: Text.AlignRight
+          text: {
+            var installed = root.hostWidget ? root.hostWidget.installedVersion : ""
+            if (installed && installed !== Version.CODE) return "v" + Version.CODE + " (v" + installed + " installed)"
+            return "v" + Version.CODE
+          }
+          color: root.contentForeground
+          opacity: 0.4
+          font.family: root.contentFont
+          font.pixelSize: Style.font.bodySmall
         }
       }
       }

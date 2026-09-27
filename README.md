@@ -18,6 +18,15 @@ omarchy plugin add https://github.com/JohnicBoom/IceStream.git --enable
 
 Runtime needs **mpv** and **curl** (both ship with Omarchy).
 
+## Update
+
+```sh
+omarchy plugin update io.github.johnicboom.icestream
+omarchy restart shell
+```
+
+Omarchy keeps running the previous IceStream code until the shell restarts, so the new version only takes effect after `omarchy restart shell`. From 0.3.0 on, the bar tooltip and popover say when a restart is needed; the popover shows the running version in its bottom-right corner.
+
 ## Use
 
 - Left-click the bar radio: open or close the popover
@@ -45,7 +54,7 @@ node --test tests/*.test.mjs
 omarchy plugin validate .
 ```
 
-Node is only for tests. `bash scripts/check.sh` runs tests, `omarchy plugin validate`, and qmllint.
+Node is only for tests. `bash scripts/check.sh` runs tests, `omarchy plugin validate`, and qmllint. `bash scripts/integration.sh` drives the real service (mpv, live endpoints) in a throwaway Quickshell; it needs a graphical session and network, and plays at volume 0.
 
 `node scripts/build-nwr-transmitters.mjs` regenerates the bundled NOAA transmitter list (`data/nwr-transmitters.json`).
 

@@ -2,8 +2,10 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import qs.Ui
 import qs.Commons
+import "../lib/version.js" as Version
 
 BarWidget {
   id: root
@@ -13,6 +15,19 @@ BarWidget {
     ? bar.shell.serviceFor(moduleName)
     : null
   readonly property bool playing: radioService ? radioService.playing : false
+  // After a plugin update Omarchy keeps running the old code (widget from
+  // Qt's component cache, keepLoaded Service) until the shell restarts; see
+  // lib/version.js. Compare the manifest on disk with the running code.
+  readonly property string runningVersion: Version.CODE
+  property string installedVersion: ""
+  readonly property bool serviceStale: Version.restartNeeded(installedVersion, radioService ? radioService.codeVersion : null)
+  readonly property string restartNotice: installedVersion && installedVersion !== runningVersion
+    ? "IceStream " + installedVersion + " is installed. Run `omarchy restart shell` to finish updating."
+    : "IceStream was updated. Run `omarchy restart shell` to finish."
+
+  function checkForUpdate() {
+    manifestFile.reload()
+  }
 
   function injectPanel() {
     var target = panelLoader.item
@@ -49,6 +64,15 @@ BarWidget {
 
   onBarChanged: injectPanel()
 
+  FileView {
+    id: manifestFile
+    path: String(Qt.resolvedUrl("../manifest.json")).replace(/^file:\/\//, "")
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: root.installedVersion = Version.manifestVersion(text())
+  }
+
   Loader {
     id: panelLoader
     active: true
@@ -75,6 +99,7 @@ BarWidget {
       if (root.playing) status = "Playing"
       else if (state && state.status === "connecting") status = "Connecting"
       else if (state && state.status === "error") status = "Offline"
+      if (root.serviceStale) return root.restartNotice
       if (!station || !station.callSign) return "IceStream — volunteer Icecast relay"
       var bits = [station.callSign]
       if (station.siteName) bits.push(station.siteName)

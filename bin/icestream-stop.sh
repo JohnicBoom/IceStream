@@ -6,10 +6,12 @@
 # Anchored so argv[0] must be mpv: an unanchored -f pattern also matches any
 # shell or editor whose command line merely contains this text.
 pattern='^([^ ]*/)?mpv .*--script-opts=icestream=1( |$)'
-pkill -TERM -f "$pattern" >/dev/null 2>&1
+# Only this user's processes: another user's IceStream is not ours to wait on.
+uid=$(id -u)
+pkill -TERM -u "$uid" -f "$pattern" >/dev/null 2>&1
 for _ in $(seq 1 40); do
-  pgrep -f "$pattern" >/dev/null 2>&1 || exit 0
+  pgrep -u "$uid" -f "$pattern" >/dev/null 2>&1 || exit 0
   sleep 0.05
 done
-pkill -KILL -f "$pattern" >/dev/null 2>&1
+pkill -KILL -u "$uid" -f "$pattern" >/dev/null 2>&1
 exit 0

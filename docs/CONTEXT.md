@@ -51,12 +51,17 @@ Locate UI: KWO39 is covering (Offline Icecast, Broadcastify page dead). Still of
 
 ## Architecture
 
-- **QML** (`ui/`): bar chip, popover, mpv process. Presentation and process wiring only.
-- **Service** owns playback so closing the popover does not stop audio.
-- **lib/*.js**: catalog, locate, match, player state + saved settings, mpv IPC lines, Broadcastify listen-page map. Node-testable. QML imports the same files.
-- **ui/Fetch.qml**: one-shot curl wrapper. Each run reports once with the token it was started with; locate chains ignore stale tokens.
-- **Playback:** `bin/icestream-play.sh` → `exec mpv` (from PATH) on the Icecast listen URL (`http://wxradio.org:8000/<mount>`). Do **not** rewrite to `https://wxradio.org/<mount>` as the play URL; that failed in mpv even when curl GET worked. Icecast often **400s HEAD**; probe with GET.
-- **Stop:** `bin/icestream-stop.sh` kills only mpv tagged `--script-opts=icestream=1` (pattern anchored so argv[0] is mpv) and waits until they exit. Called on stop, before every launch, once at Service start (orphans from an earlier shell), and detached (`Quickshell.execDetached`) on Service destruction. **No polling timer**: an earlier 1.5 s idle pkill loop cost a fork every 1.5 s forever and could kill freshly started streams.
+- **QML** (`ui/`): presentation and process wiring only.
+  - `BarWidget.qml` / `Panel.qml`: bar chip and popover. They talk only to the Service facade.
+  - `Service.qml`: keep-loaded facade (the API BarWidget/Panel use). Owns playback so closing the popover does not stop audio. Composes:
+    - `Playback.qml`: player state, mpv process + stop script, mpv IPC socket, saved settings. Performs the effects `lib/transport.js` returns; decides nothing about ordering itself.
+    - `Locator.qml`: ZIP / weather.json / IP → NWS `/points` → covering transmitter → Closest stations. Never touches playback.
+    - `Catalogs.qml`: Icecast mounts (hourly), NOAA transmitters (bundled + daily), Broadcastify map.
+  - `Fetch.qml`: one-shot curl wrapper. Each run reports once with the token it was started with; locate chains ignore stale tokens.
+- **lib/*.js**: all decisions, Node-tested. QML imports the same files. `transport.js` is the playback sequencing state machine (events in, effects out); `player.js` is user-facing status + settings; `mpv.js` IPC lines; `catalog`, `nwr`, `locate`, `match`, `broadcastify`; `version.js` (below).
+- **Updates need a shell restart (all of the plugin, not just the Service):** Omarchy's hot reload recreates the bar widget, but Quickshell has no `Qt.clearComponentCache`, so Qt hands back the **cached old** `BarWidget.qml`/`Panel.qml`; and a `keepLoaded` Service is never replaced (plugins cannot restart it). Verified: recreating a component from an edited file returns the old code. So after `omarchy plugin update` everything runs the old version until `omarchy restart shell`. Detection therefore lives in the *running* code: BarWidget watches `manifest.json` (FileView survives git's rename-replace; also re-read on panel open) and compares its version with `lib/version.js` `CODE` (must equal `manifest.json`; a test checks). If they differ, or the Service's `codeVersion` differs, the tooltip and popover say "IceStream X is installed. Run `omarchy restart shell` to finish updating." The popover shows the running version bottom-right. This only works from 0.3.0 on (older versions have no detector). Bump the version on every release.
+- **Playback:** `bin/icestream-play.sh` → `exec mpv --no-config --ytdl=no` (from PATH; the user's mpv config/scripts must not affect IceStream, and a dead mount fails in ~0.5 s instead of ~2.3 s via yt-dlp; no back-buffer, 4 MiB read-ahead since there is no seeking) on the Icecast listen URL (`http://wxradio.org:8000/<mount>`). Do **not** rewrite to `https://wxradio.org/<mount>` as the play URL; that failed in mpv even when curl GET worked. Icecast often **400s HEAD**; probe with GET.
+- **Stop:** `bin/icestream-stop.sh` kills only this user's mpv tagged `--script-opts=icestream=1` (pattern anchored so argv[0] is mpv; `-u $(id -u)`) and waits until they exit. Called on stop, before every launch, once at Service start (orphans from an earlier shell), and detached (`Quickshell.execDetached`) on Service destruction. **No polling timer**: an earlier 1.5 s idle pkill loop cost a fork every 1.5 s forever and could kill freshly started streams.
 - **Locate:** On panel open: weather.json coords if set; else the same IP lookup weather uses (`https://wttr.in/?format=j1` `nearest_area` lat/lon, e.g. Lombard). Typed US ZIP still wins. The weather *name* is a label only. Then `api.weather.gov/points/{lat},{lon}` (4 decimal places). `GET /points/…/radio` is SSML, not the stream.
 - **Closest stations:** candidates are every transmitter whose SAME codes include the user's county (`/points` → `nwr.sameCode`), plus the covering one; fall back to the covering transmitter's SAME list if the point has no county code. Attach Icecast and Broadcastify by call sign. Rank by distance to NOAA **tower** coordinates (Broadcastify coordinates are only a fallback). KWO39's tower is downtown Chicago (41.8789, -87.6361) even though NWS lists its site city as Wood Dale.
 - **Transmitter list:** `data/nwr-transmitters.json` (bundled, ~1,035 transmitters: SAME codes, frequency, site, status, tower lat/lon), generated by `node scripts/build-nwr-transmitters.mjs` from NOAA's county coverage data `https://www.weather.gov/source/nwr/JS/ccl-data.js` (parsed as JSON, never evaluated). The Service loads the bundle at startup and refetches the source at startup and daily (~180 KB compressed); a download only replaces data if it parses as complete (≥ 900 transmitters). Rerun the script before releases.
@@ -71,7 +76,11 @@ Locate UI: KWO39 is covering (Offline Icecast, Broadcastify page dead). Still of
 ```sh
 node --test tests/*.test.mjs
 omarchy plugin validate .
+bash scripts/check.sh        # both of the above + qmllint
+bash scripts/integration.sh  # real Service + mpv + live endpoints (graphical session, network)
 ```
+
+`scripts/integration.sh` copies the plugin to a temp dir with a different mpv tag and a temporary HOME, so it cannot stop real IceStream playback or touch saved state.
 
 `omarchy plugin validate` checks the **manifest folder** (schema, id, kinds, entry points, no symlinks). Silent exit 0 is success. It does not run QML, mpv, or unit tests.
 

@@ -294,3 +294,12 @@ test("Wood Dale ranking holds with the bundled NOAA transmitter data", () => {
   assert.equal(kwo.callSign, "KWO39")
   assert.equal(locate.optionKind(kwo), "offline")
 })
+
+test("optionAction plays Available, opens live Broadcastify pages, and does nothing for Offline", () => {
+  assert.equal(locate.optionAction({ streamUrl: "http://x" }), "play")
+  assert.equal(locate.optionAction({ broadcastifyUrl: "u", broadcastifyOnline: true }), "browser")
+  assert.equal(locate.optionAction({ broadcastifyUrl: "u", broadcastifyOnline: null }), "browser")
+  assert.equal(locate.optionAction({ broadcastifyUrl: "u", broadcastifyOnline: false }), "none")
+  assert.equal(locate.optionAction({}), "none")
+  assert.equal(locate.optionAction(null), "none")
+})

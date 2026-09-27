@@ -109,3 +109,22 @@ test("mergeByCallSign keeps fresh entries and previously remembered extras", () 
   ])
   assert.deepEqual(catalog.mergeByCallSign([], previous), previous)
 })
+
+test("replaceTransmitters drops transmitters NOAA removed but keeps individual NWS lookups", () => {
+  const current = [
+    { callSign: "KEC94", siteName: "Phoenix (old)" },
+    { callSign: "GONE1", siteName: "Decommissioned" },
+    { callSign: "LOOK1", siteName: "Looked up", lookedUp: true },
+    { callSign: "KEC95", siteName: "Looked up but now in NOAA", lookedUp: true }
+  ]
+  const fresh = [{ callSign: "KEC94", siteName: "Phoenix" }, { callSign: "KEC95", siteName: "NOAA" }]
+  assert.deepEqual(catalog.replaceTransmitters(fresh, current).map((t) => t.callSign + ":" + t.siteName), [
+    "KEC94:Phoenix",
+    "KEC95:NOAA",
+    "LOOK1:Looked up"
+  ])
+})
+
+test("userAgent identifies the plugin", () => {
+  assert.ok(catalog.userAgent.indexOf("IceStream") === 0)
+})
