@@ -13,9 +13,9 @@ const fixtures = join(dirname(fileURLToPath(import.meta.url)), "fixtures")
 const streams = catalog.parseIcecastStatus(
   readFileSync(join(fixtures, "icecast-status.json"), "utf8")
 )
-const transmitters = catalog.parseNwsRadioList(
-  readFileSync(join(fixtures, "nws-radio-page.json"), "utf8")
-).transmitters
+const locate = require("../lib/locate.js")
+const transmitters = JSON.parse(readFileSync(join(fixtures, "nws-radio-page.json"), "utf8"))["@graph"]
+  .map((item) => locate.parseNwsTransmitter(JSON.stringify(item)))
 
 test("preferStream picks a primary mount over an alt of the same call sign", () => {
   const kih = streams.filter((s) => s.callSign === "KIH24")
@@ -36,19 +36,9 @@ test("resolveCovering selects a live stream for the covering transmitter", () =>
   assert.equal(result.covering.callSign, "KEC94")
   assert.equal(result.covering.siteName, "Phoenix")
   assert.equal(result.streamUrl, "http://wxradio.org:8000/AZ-Phoenix-KEC94")
-  assert.equal(result.fallback, null)
 })
 
-test("resolveCovering keeps a covering station with no stream and offers same-state fallbacks", () => {
-  const result = match.resolveCovering("KZZ67", transmitters, streams)
-  assert.equal(result.covering.callSign, "KZZ67")
-  assert.equal(result.streamUrl, null)
-  assert.ok(result.fallback)
-  assert.equal(result.fallback.callSign, "WXK91")
-  assert.equal(result.fallback.streamUrl, "http://wxradio.org:8000/KS-Topeka-WXK91-alt1")
-})
-
-test("resolveCovering keeps a covering transmitter that has no Icecast stream", () => {
+test("resolveCovering keeps a covering transmitter that has no Icecast stream and does not substitute another", () => {
   const kwo = {
     callSign: "KWO39",
     frequency: "162.550",
@@ -68,10 +58,10 @@ test("resolveCovering keeps a covering transmitter that has no Icecast stream", 
     }
   ]
   const result = match.resolveCovering("KWO39", [kwo], illinois)
+  assert.deepEqual(Object.keys(result).sort(), ["covering", "station", "streamUrl"])
   assert.equal(result.station.callSign, "KWO39")
   assert.equal(result.station.siteCity, "Wood Dale")
   assert.equal(result.streamUrl, null)
-  assert.equal(result.fallback.callSign, "KXI58")
 })
 
 test("resolveCovering synthesizes a station from a live stream when NWS metadata is missing", () => {
@@ -85,7 +75,6 @@ test("resolveCovering returns no covering transmitter for an unknown call sign",
   const result = match.resolveCovering("ZZZZZ", transmitters, streams)
   assert.equal(result.covering, null)
   assert.equal(result.streamUrl, null)
-  assert.equal(result.fallback, null)
 })
 
 test("preferNearby puts the preferred call sign and same-state streams first", () => {

@@ -37,31 +37,3 @@ test("parseCatalog reads call signs, feed ids, SAME codes, and online flags", ()
   const kwo = catalog.find((f) => f.callSign === "KWO39")
   assert.equal(kwo.online, false)
 })
-
-test("feedForCallSign is case-insensitive", () => {
-  assert.equal(broadcastify.feedForCallSign(catalog, "kzz81").feedId, 46216)
-  assert.equal(broadcastify.feedForCallSign(catalog, "missing"), null)
-})
-
-test("overlappingFeeds lists live neighbors before an offline covering station", () => {
-  const feeds = broadcastify.overlappingFeeds(catalog, "KWO39", ["017043"])
-  assert.ok(feeds.length >= 2)
-  assert.equal(feeds[0].online, true)
-  assert.ok(["KZZ81", "KXI58"].indexOf(feeds[0].callSign) !== -1)
-  const kwo = feeds.find((f) => f.callSign === "KWO39")
-  assert.ok(kwo)
-  assert.equal(kwo.online, false)
-  assert.ok(feeds.indexOf(kwo) > 0)
-})
-
-test("statusLabel names live and offline feeds", () => {
-  assert.equal(broadcastify.statusLabel({ online: true }), "live")
-  assert.equal(broadcastify.statusLabel({ online: false }), "offline")
-  assert.equal(broadcastify.statusLabel({}), "unknown")
-})
-
-test("overlappingFeeds still returns SAME neighbors when the covering station has no page", () => {
-  const feeds = broadcastify.overlappingFeeds(catalog, "ZZZZZ", ["017043"])
-  assert.ok(feeds.some((f) => f.callSign === "KZZ81"))
-  assert.ok(!feeds.some((f) => f.callSign === "ZZZZZ"))
-})

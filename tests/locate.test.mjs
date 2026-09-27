@@ -79,37 +79,6 @@ test("parseWeatherLocation reads Omarchy weather.json coordinates", () => {
   )
 })
 
-test("parsePlaceQuery distinguishes a US ZIP from a city query", () => {
-  assert.deepEqual(locate.parsePlaceQuery("60191"), { kind: "zip", zip: "60191", name: "", state: null })
-  assert.deepEqual(locate.parsePlaceQuery(" 60191-1234 "), { kind: "zip", zip: "60191", name: "", state: null })
-  assert.deepEqual(locate.parsePlaceQuery("Wood Dale, IL"), {
-    kind: "city",
-    zip: null,
-    name: "Wood Dale",
-    state: "IL"
-  })
-  assert.deepEqual(locate.parsePlaceQuery("Wood Dale"), {
-    kind: "city",
-    zip: null,
-    name: "Wood Dale",
-    state: null
-  })
-  assert.equal(locate.parsePlaceQuery("   "), null)
-})
-
-test("parseGeocodingResults prefers a US populated place matching the state hint", () => {
-  const place = locate.parseGeocodingResults(readFixture("geocode-wood-dale.json"), "IL")
-  assert.equal(place.name, "Wood Dale")
-  assert.equal(place.state, "Illinois")
-  assert.equal(place.latitude, 41.96336)
-  assert.equal(place.longitude, -87.97896)
-})
-
-test("parseGeocodingResults returns null when there are no usable hits", () => {
-  assert.equal(locate.parseGeocodingResults(""), null)
-  assert.equal(locate.parseGeocodingResults("{}"), null)
-})
-
 test("parseNwsTransmitter reads a single /radio/{callSign} payload", () => {
   const tx = locate.parseNwsTransmitter(readFixture("nws-transmitter-kwo39.json"))
   assert.deepEqual(tx, {
@@ -121,39 +90,6 @@ test("parseNwsTransmitter reads a single /radio/{callSign} payload", () => {
     sameCodes: ["017043"],
     counties: ["ILC043"]
   })
-})
-
-test("buildLocateOptions ranks Wood Dale covering offline then Lockport then Plano", () => {
-  const origin = { latitude: 41.96336, longitude: -87.97896 }
-  const covering = {
-    callSign: "KWO39",
-    siteName: "Chicago",
-    siteCity: "Wood Dale",
-    siteState: "IL",
-    frequency: "162.550",
-    streamUrl: null,
-    sameCodes: ["017043"]
-  }
-  const streams = [
-    {
-      callSign: "KXI58",
-      state: "IL",
-      siteName: "Plano",
-      streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58"
-    }
-  ]
-  const catalog = require("../lib/broadcastify.js").parseCatalog(
-    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/broadcastify-nwr.json"), "utf8")
-  )
-  const ranked = locate.buildLocateOptions(covering, streams, catalog, origin)
-  assert.equal(ranked[0].callSign, "KZZ81")
-  assert.equal(locate.optionKind(ranked[0]), "browser-only")
-  assert.equal(ranked[1].callSign, "KXI58")
-  assert.equal(locate.optionKind(ranked[1]), "available")
-  const kwo = ranked.find((s) => s.callSign === "KWO39")
-  assert.ok(kwo)
-  assert.equal(kwo.covering, true)
-  assert.equal(locate.optionKind(kwo), "offline")
 })
 
 test("rankOnlineOptions prefers a closer working source over a farther Icecast mount", () => {
@@ -203,4 +139,158 @@ test("parseWeatherLocation treats a missing or nameless file as unset", () => {
     latitude: null,
     longitude: null
   })
+})
+
+test("parsePlaceQuery only recognizes a US ZIP", () => {
+  assert.deepEqual(locate.parsePlaceQuery("60191"), { kind: "zip", zip: "60191" })
+  assert.deepEqual(locate.parsePlaceQuery(" 60191-1234 "), { kind: "zip", zip: "60191" })
+  assert.equal(locate.parsePlaceQuery("Wood Dale, IL"), null)
+  assert.equal(locate.parsePlaceQuery("   "), null)
+})
+
+const woodDale = { latitude: 41.96336, longitude: -87.97896 }
+const kwo39 = {
+  callSign: "KWO39",
+  siteName: "Chicago",
+  siteCity: "Wood Dale",
+  siteState: "IL",
+  frequency: "162.550",
+  streamUrl: null,
+  sameCodes: ["017043"]
+}
+const plano = {
+  callSign: "KXI58",
+  state: "IL",
+  siteName: "Plano",
+  streamUrl: "http://wxradio.org:8000/IL-Plano-KXI58"
+}
+const bcfyCatalog = require("../lib/broadcastify.js").parseCatalog(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/broadcastify-nwr.json"), "utf8")
+)
+
+test("buildLocateOptions ranks Wood Dale covering offline then Lockport then Plano", () => {
+  const ranked = locate.buildLocateOptions({
+    covering: kwo39,
+    streams: [plano],
+    broadcastify: bcfyCatalog,
+    origin: woodDale,
+    sameCode: "017043"
+  })
+  assert.equal(ranked[0].callSign, "KZZ81")
+  assert.equal(locate.optionKind(ranked[0]), "browser-only")
+  assert.equal(ranked[1].callSign, "KXI58")
+  assert.equal(locate.optionKind(ranked[1]), "available")
+  const kwo = ranked.find((s) => s.callSign === "KWO39")
+  assert.ok(kwo)
+  assert.equal(kwo.covering, true)
+  assert.equal(locate.optionKind(kwo), "offline")
+})
+
+test("buildLocateOptions finds Icecast neighbors through NWS SAME codes without a Broadcastify entry", () => {
+  const covering = {
+    callSign: "KZZ67",
+    siteName: "Linn",
+    siteState: "KS",
+    frequency: "162.500",
+    streamUrl: null,
+    sameCodes: ["020201", "020027"]
+  }
+  const transmitters = [
+    { callSign: "KZZ67", siteName: "Linn", siteState: "KS", frequency: "162.500", sameCodes: ["020201", "020027"] },
+    { callSign: "WXK91", siteName: "Topeka", siteCity: "Topeka", siteState: "KS", frequency: "162.475", sameCodes: ["020177", "020201"] },
+    { callSign: "WXK95", siteName: "Salina", siteState: "KS", frequency: "162.400", sameCodes: ["020169", "020027"] },
+    { callSign: "KEC94", siteName: "Phoenix", siteState: "AZ", frequency: "162.550", sameCodes: ["004013"] }
+  ]
+  const streams = [
+    { callSign: "WXK91", state: "KS", siteName: "Topeka", streamUrl: "http://wxradio.org:8000/KS-Topeka-WXK91" },
+    { callSign: "WXK95", state: "KS", siteName: "Salina", streamUrl: "http://wxradio.org:8000/KS-Salina-WXK95" },
+    { callSign: "KEC94", state: "AZ", siteName: "Phoenix", streamUrl: "http://wxradio.org:8000/AZ-Phoenix-KEC94" }
+  ]
+  const ranked = locate.buildLocateOptions({
+    covering,
+    streams,
+    broadcastify: [],
+    transmitters,
+    origin: { latitude: 39.7456, longitude: -97.0892 },
+    sameCode: "020201"
+  })
+  const calls = ranked.map((s) => s.callSign)
+  assert.deepEqual(calls, ["WXK91", "KZZ67"])
+  assert.equal(ranked[0].frequency, "162.475")
+  assert.equal(ranked[0].siteState, "KS")
+  assert.equal(locate.optionKind(ranked[0]), "available")
+})
+
+test("buildLocateOptions falls back to the covering SAME list when the point has no county code", () => {
+  const covering = { callSign: "KZZ67", siteState: "KS", streamUrl: null, sameCodes: ["020027"] }
+  const transmitters = [
+    { callSign: "WXK95", siteName: "Salina", siteState: "KS", sameCodes: ["020027"] }
+  ]
+  const streams = [
+    { callSign: "WXK95", state: "KS", siteName: "Salina", streamUrl: "http://wxradio.org:8000/KS-Salina-WXK95" }
+  ]
+  const ranked = locate.buildLocateOptions({ covering, streams, transmitters, origin: null, sameCode: "" })
+  assert.deepEqual(ranked.map((s) => s.callSign), ["WXK95", "KZZ67"])
+})
+
+test("buildLocateOptions carries a covering Broadcastify page so its kind is browser-only", () => {
+  const covering = { callSign: "KZZ81", siteName: "Lockport", siteState: "IL", streamUrl: null, sameCodes: [] }
+  const ranked = locate.buildLocateOptions({ covering, broadcastify: bcfyCatalog, origin: woodDale, sameCode: "" })
+  const kzz = ranked.find((s) => s.covering)
+  assert.equal(kzz.callSign, "KZZ81")
+  assert.equal(locate.optionKind(kzz), "browser-only")
+})
+
+test("buildLocateOptions ranks by NOAA tower coordinates carried on transmitters", () => {
+  const covering = { callSign: "KZZ67", siteState: "KS", streamUrl: null, sameCodes: ["020201"] }
+  const transmitters = [
+    { callSign: "KZZ67", siteState: "KS", sameCodes: ["020201"], latitude: 39.7067, longitude: -96.557 },
+    { callSign: "WXK91", siteName: "Topeka", siteState: "KS", sameCodes: ["020201"], latitude: 39.006, longitude: -96.0494 },
+    { callSign: "WXK95", siteName: "Salina", siteState: "KS", sameCodes: ["020201"], latitude: 38.84, longitude: -97.61 },
+    { callSign: "KZZ68", siteName: "Near", siteState: "KS", sameCodes: ["020201"], latitude: 39.75, longitude: -97.1 }
+  ]
+  const streams = [
+    { callSign: "WXK91", state: "KS", siteName: "Topeka", streamUrl: "http://wxradio.org:8000/KS-Topeka-WXK91" },
+    { callSign: "WXK95", state: "KS", siteName: "Salina", streamUrl: "http://wxradio.org:8000/KS-Salina-WXK95" },
+    { callSign: "KZZ68", state: "KS", siteName: "Near", streamUrl: "http://wxradio.org:8000/KS-Near-KZZ68" }
+  ]
+  const ranked = locate.buildLocateOptions({
+    covering,
+    streams,
+    transmitters,
+    origin: { latitude: 39.7456, longitude: -97.0892 },
+    sameCode: "020201"
+  })
+  assert.deepEqual(ranked.map((s) => s.callSign), ["KZZ68", "WXK95", "WXK91", "KZZ67"])
+  assert.equal(ranked[3].latitude, 39.7067)
+})
+
+test("NOAA tower coordinates win over Broadcastify coordinates", () => {
+  const covering = { callSign: "KWO39", siteState: "IL", streamUrl: null, sameCodes: [] }
+  const ranked = locate.buildLocateOptions({
+    covering,
+    transmitters: [{ callSign: "KWO39", sameCodes: [], latitude: 41.8789, longitude: -87.6361 }],
+    broadcastify: [{ callSign: "KWO39", title: "Chicago", url: "u", online: false, latitude: 41.9634, longitude: -87.979, sameCodes: [] }],
+    origin: woodDale
+  })
+  assert.equal(ranked[0].latitude, 41.8789)
+  assert.equal(ranked[0].longitude, -87.6361)
+})
+
+test("Wood Dale ranking holds with the bundled NOAA transmitter data", () => {
+  const transmitters = require("../lib/nwr.js").parseBundle(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../data/nwr-transmitters.json"), "utf8")
+  )
+  const ranked = locate.buildLocateOptions({
+    covering: kwo39,
+    streams: [plano],
+    broadcastify: bcfyCatalog,
+    transmitters,
+    origin: woodDale,
+    sameCode: "017043"
+  })
+  assert.deepEqual(ranked.slice(0, 2).map((s) => s.callSign), ["KZZ81", "KXI58"])
+  const kwo = ranked.find((s) => s.covering)
+  assert.equal(kwo.callSign, "KWO39")
+  assert.equal(locate.optionKind(kwo), "offline")
 })

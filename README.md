@@ -24,7 +24,10 @@ Runtime needs **mpv** and **curl** (both ship with Omarchy).
 - Right-click: play/stop
 - Middle-click, or opening the panel: locate from Omarchy weather coordinates, or the same IP city weather shows before you set one
 - ZIP field: 5-digit US ZIP if you want a different place
-- Space or the stop square: stop while playing (pick an Available stream to start)
+- Space: play/stop (the last station)
+- Up/Down or j/k: move through Closest stations and the relay list; Enter plays the highlighted row
+- `/`: filter the relay list (Esc or Down goes back to the list)
+- The stop square: stop while playing
 - Escape: close
 - **Available**: play in IceStream
 - **Browser-only**: opens Broadcastify in the browser
@@ -32,7 +35,7 @@ Runtime needs **mpv** and **curl** (both ship with Omarchy).
 
 Closing the panel does not stop audio. Right-click the bar or press stop.
 
-Volume in the popover is IceStream-only, so other apps can stay louder.
+Volume in the popover is IceStream-only, so other apps can stay louder. It is remembered across restarts.
 
 ## Develop
 
@@ -42,11 +45,13 @@ node --test tests/*.test.mjs
 omarchy plugin validate .
 ```
 
-Node is only for tests. `bash scripts/check.sh` runs tests and `omarchy plugin validate`.
+Node is only for tests. `bash scripts/check.sh` runs tests, `omarchy plugin validate`, and qmllint.
+
+`node scripts/build-nwr-transmitters.mjs` regenerates the bundled NOAA transmitter list (`data/nwr-transmitters.json`).
 
 ## Remove
 
 ```sh
 omarchy plugin remove io.github.johnicboom.icestream
-rm -rf ~/.local/state/icestream ~/.cache/icestream
+rm -rf ~/.local/state/icestream
 ```

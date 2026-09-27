@@ -1,5 +1,6 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
@@ -17,6 +18,17 @@ Panel {
   readonly property bool playing: radio ? radio.playing : false
   readonly property color contentForeground: bar ? bar.foreground : Color.popups.text
   readonly property string contentFont: bar ? bar.fontFamily : Style.font.family
+
+  // Keyboard cursor over one combined list: closest stations first, then
+  // the filtered relay list. -1 means no row is highlighted.
+  property int cursorIndex: -1
+  property bool returnPending: false
+  readonly property var options: radio && radio.locateOptions ? radio.locateOptions : []
+  readonly property var streamRows: radio && radio.visibleStreams ? radio.visibleStreams : []
+  readonly property int optionCount: options.length
+  readonly property int rowCount: optionCount + streamRows.length
+
+  onRowCountChanged: if (cursorIndex >= rowCount) cursorIndex = rowCount - 1
 
   function open() {
     root.controller.show()
@@ -56,6 +68,58 @@ Panel {
     return "Idle"
   }
 
+  function isCurrentStream(streamUrl) {
+    return !!(root.station && streamUrl && root.station.streamUrl === streamUrl)
+  }
+
+  function activateOption(opt) {
+    if (!root.radio || !opt) return
+    if (opt.streamUrl) root.radio.playStation(opt)
+    else if (opt.broadcastifyUrl) root.radio.openBroadcastify({ url: opt.broadcastifyUrl, feedId: 0 })
+  }
+
+  function moveCursor(dy) {
+    if (root.rowCount <= 0) return
+    var next = root.cursorIndex < 0 ? (dy > 0 ? 0 : root.rowCount - 1) : root.cursorIndex + dy
+    root.cursorIndex = Math.max(0, Math.min(root.rowCount - 1, next))
+    root.ensureCursorVisible()
+  }
+
+  function activateCursor() {
+    var i = root.cursorIndex
+    if (!root.radio || i < 0 || i >= root.rowCount) return false
+    if (i < root.optionCount) root.activateOption(root.options[i])
+    else root.radio.selectStream(root.streamRows[i - root.optionCount])
+    return true
+  }
+
+  function ensureItemVisible(item) {
+    if (!item) return
+    var p = item.mapToItem(content, 0, 0)
+    if (p.y < scroll.contentY) scroll.contentY = p.y
+    else if (p.y + item.height > scroll.contentY + scroll.height)
+      scroll.contentY = Math.min(p.y + item.height - scroll.height, Math.max(0, scroll.contentHeight - scroll.height))
+  }
+
+  function ensureCursorVisible() {
+    var i = root.cursorIndex
+    if (i < 0) return
+    if (i < root.optionCount) {
+      root.ensureItemVisible(optionRepeater.itemAt(i))
+    } else {
+      stationList.positionViewAtIndex(i - root.optionCount, ListView.Contain)
+      root.ensureItemVisible(stationList)
+    }
+  }
+
+  function focusList(cursor) {
+    if (cursor !== undefined) {
+      root.cursorIndex = cursor
+      root.ensureCursorVisible()
+    }
+    keyCatcher.forceActiveFocus()
+  }
+
   function optionKindLabel(opt) {
     if (!opt) return "Offline"
     if (opt.streamUrl) return "Available"
@@ -78,15 +142,21 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      // Text fields get every key while focused (Omarchy panel convention);
+      // they hand focus back with Esc / Down.
+      blocked: searchField.activeFocus || zipField.activeFocus
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
-
-      Keys.onPressed: function(event) {
-        if (event.key === Qt.Key_Space) {
-          if (root.radio && (root.playing || root.radio.connecting)) root.radio.stop()
-          event.accepted = true
-        }
+      onMoveRequested: function(dx, dy) { if (dy !== 0) root.moveCursor(dy) }
+      // Return emits returnRequested then activateRequested; Space only the latter.
+      onReturnRequested: root.returnPending = true
+      onActivateRequested: {
+        var fromReturn = root.returnPending
+        root.returnPending = false
+        if (fromReturn && root.activateCursor()) return
+        if (root.radio) root.radio.togglePlay()
       }
+      onTextKey: function(t) { if (t === "/") searchField.forceActiveFocus() }
 
       Flickable {
         id: scroll
@@ -139,32 +209,18 @@ Panel {
             }
           }
 
-          Rectangle {
+          PanelActionButton {
             id: stopButton
-            visible: root.playing || (root.radio && root.radio.connecting)
-            width: visible ? Style.space(36) : 0
-            height: Style.space(36)
-            radius: Style.space(6)
-            color: stopMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
-            border.width: visible ? 1 : 0
-            border.color: Color.accent
-
-            Text {
-              anchors.centerIn: parent
-              visible: stopButton.visible
-              text: "■"
-              color: Color.accent
-              font.pixelSize: Style.font.subtitle
-            }
-
-            MouseArea {
-              id: stopMouse
-              anchors.fill: parent
-              enabled: stopButton.visible
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: if (root.radio) root.radio.stop()
-            }
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.playing || (root.radio !== null && root.radio.connecting)
+            size: Style.space(36)
+            iconText: "󰓛"
+            tooltipText: "Stop"
+            foreground: Color.accent
+            hoverColor: Color.accent
+            fontFamily: root.contentFont
+            bordered: true
+            onClicked: if (root.radio) root.radio.stop()
           }
         }
 
@@ -172,24 +228,31 @@ Panel {
           width: parent.width
           spacing: Style.space(8)
           Text {
+            id: volLabel
             anchors.verticalCenter: parent.verticalCenter
             text: "Vol"
             color: root.contentForeground
             font.family: root.contentFont
             font.pixelSize: Style.font.bodySmall
           }
-          Slider {
+          // IceStream-only mpv volume (0-100), independent of system volume.
+          PanelSlider {
             id: volSlider
-            width: parent.width - Style.space(80)
-            from: 0
-            to: 100
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - volLabel.width - volPercent.width - parent.spacing * 2
+            bar: root.bar
+            minimum: 0
+            maximum: 100
+            step: 5
+            integer: true
             value: root.radio ? root.radio.volume : 75
-            onMoved: if (root.radio) root.radio.setVolume(value)
+            onMoved: function(v) { if (root.radio) root.radio.setVolume(v) }
           }
           Text {
+            id: volPercent
             anchors.verticalCenter: parent.verticalCenter
-            width: Style.space(32)
-            text: Math.round(root.radio ? root.radio.volume : 75) + "%"
+            width: Style.space(40)
+            text: Math.round(volSlider.liveValue) + "%"
             color: root.contentForeground
             font.family: root.contentFont
             font.pixelSize: Style.font.bodySmall
@@ -214,7 +277,7 @@ Panel {
 
           Text {
             width: parent.width
-            text: "Closest online"
+            text: "Closest stations"
             color: root.contentForeground
             opacity: 0.7
             font.family: root.contentFont
@@ -222,25 +285,29 @@ Panel {
           }
 
           Repeater {
-            model: root.radio ? root.radio.locateOptions : []
+            id: optionRepeater
+            model: root.options
             delegate: Rectangle {
+              id: optionRow
               required property var modelData
+              required property int index
               readonly property string kind: root.optionKindLabel(modelData)
+              readonly property bool hasCursor: root.cursorIndex === index
               width: content.width
               height: Style.space(32)
               radius: Style.space(4)
-              opacity: kind === "Offline" ? 0.55 : 1
-              color: optMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
-              border.width: 1
-              border.color: kind === "Available" ? Color.accent : root.contentForeground
+              opacity: kind === "Offline" && !hasCursor ? 0.55 : 1
+              color: optMouse.containsMouse || hasCursor ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+              border.width: hasCursor ? 2 : 1
+              border.color: kind === "Available" || hasCursor ? Color.accent : root.contentForeground
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.margins: Style.space(8)
-                text: (modelData.covering ? "Covering · " : "") + modelData.callSign + (modelData.siteName ? " " + modelData.siteName : "") + " · " + kind
-                color: kind === "Offline" ? root.contentForeground : Color.accent
+                text: (optionRow.modelData.covering ? "Covering · " : "") + optionRow.modelData.callSign + (optionRow.modelData.siteName ? " " + optionRow.modelData.siteName : "") + " · " + optionRow.kind
+                color: optionRow.kind === "Offline" ? root.contentForeground : Color.accent
                 font.family: root.contentFont
                 font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
@@ -252,9 +319,8 @@ Panel {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                  if (!root.radio) return
-                  if (modelData.streamUrl) root.radio.playStation(modelData)
-                  else if (modelData.broadcastifyUrl) root.radio.openBroadcastify({ url: modelData.broadcastifyUrl, feedId: 0 })
+                  root.cursorIndex = optionRow.index
+                  root.activateOption(optionRow.modelData)
                 }
               }
             }
@@ -273,10 +339,19 @@ Panel {
         TextField {
           id: searchField
           width: parent.width
-          placeholderText: "Filter stations by call sign or state"
+          placeholderText: "Filter stations  ( / )"
           foreground: root.contentForeground
           font.family: root.contentFont
           onTextChanged: if (root.radio) root.radio.searchQuery = text
+          Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+              root.focusList()
+              event.accepted = true
+            } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+              root.focusList(root.streamRows.length ? root.optionCount : root.cursorIndex)
+              event.accepted = true
+            }
+          }
         }
 
         ListView {
@@ -284,24 +359,29 @@ Panel {
           width: parent.width
           height: Style.space(140)
           clip: true
-          model: root.radio ? root.radio.visibleStreams : []
+          model: root.streamRows
           spacing: Style.space(2)
 
           delegate: Rectangle {
+            id: streamRow
             required property var modelData
+            required property int index
+            readonly property bool hasCursor: root.cursorIndex === root.optionCount + index
             width: stationList.width
             height: Style.space(28)
             radius: Style.space(4)
-            color: rowMouse.containsMouse || (root.station && root.station.callSign === modelData.callSign)
+            color: rowMouse.containsMouse || hasCursor || root.isCurrentStream(modelData.streamUrl)
               ? Style.hoverFillFor(root.contentForeground, Color.accent)
               : "transparent"
+            border.width: hasCursor ? 2 : 0
+            border.color: Color.accent
 
             Text {
               anchors.verticalCenter: parent.verticalCenter
               anchors.left: parent.left
               anchors.right: parent.right
               anchors.margins: Style.space(6)
-              text: modelData.callSign + "  " + modelData.siteName + ", " + modelData.state + (modelData.alt ? "  alt" : "")
+              text: streamRow.modelData.callSign + "  " + streamRow.modelData.siteName + ", " + streamRow.modelData.state + (streamRow.modelData.alt ? "  alt" : "")
               color: root.contentForeground
               font.family: root.contentFont
               font.pixelSize: Style.font.body
@@ -313,7 +393,10 @@ Panel {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onClicked: if (root.radio) root.radio.selectStream(modelData)
+              onClicked: {
+                root.cursorIndex = root.optionCount + streamRow.index
+                if (root.radio) root.radio.selectStream(streamRow.modelData)
+              }
             }
           }
         }
@@ -329,8 +412,15 @@ Panel {
             foreground: root.contentForeground
             font.family: root.contentFont
             onTextChanged: if (root.radio) root.radio.zipText = text
-            Keys.onReturnPressed: if (root.radio) root.radio.locateClosest()
-            Keys.onEnterPressed: if (root.radio) root.radio.locateClosest()
+            Keys.onPressed: function(event) {
+              if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (root.radio) root.radio.locateClosest()
+                event.accepted = true
+              } else if (event.key === Qt.Key_Escape) {
+                root.focusList()
+                event.accepted = true
+              }
+            }
           }
 
           Rectangle {

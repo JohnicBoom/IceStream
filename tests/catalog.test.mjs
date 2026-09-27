@@ -91,23 +91,21 @@ test("parseIcecastStatus returns [] for empty or unparseable input", () => {
   assert.deepEqual(catalog.parseIcecastStatus(JSON.stringify({ icestats: {} })), [])
 })
 
-test("parseNwsRadioList reads transmitters and the next page cursor", () => {
-  const page = catalog.parseNwsRadioList(readFixture("nws-radio-page.json"))
-  assert.equal(page.transmitters.length, 3)
-  assert.equal(page.next, "https://api.weather.gov/radio?cursor=eyJpIjo1MDB9")
-  const phoenix = page.transmitters.find((t) => t.callSign === "KEC94")
-  assert.deepEqual(phoenix, {
-    callSign: "KEC94",
-    frequency: "162.550",
-    siteName: "Phoenix",
-    siteCity: "South Mtn.",
-    siteState: "AZ",
-    sameCodes: ["004013", "004021"],
-    counties: ["AZC013", "AZC021"]
-  })
+test("statusUrl fetches the Icecast catalog over HTTPS", () => {
+  assert.equal(catalog.statusUrl, "https://wxradio.org/status-json.xsl")
 })
 
-test("parseNwsRadioList returns empty transmitters for bad input", () => {
-  assert.deepEqual(catalog.parseNwsRadioList(""), { transmitters: [], next: null })
-  assert.deepEqual(catalog.parseNwsRadioList("{}"), { transmitters: [], next: null })
+test("HTTPS catalog still yields port-8000 listen URLs for mpv", () => {
+  const streams = catalog.parseIcecastStatus(readFixture("icecast-status.json"))
+  assert.ok(streams.every((s) => s.streamUrl.indexOf("http://wxradio.org:8000/") === 0))
+})
+
+test("mergeByCallSign keeps fresh entries and previously remembered extras", () => {
+  const fresh = [{ callSign: "KEC94", siteName: "Phoenix (new)" }]
+  const previous = [{ callSign: "KEC94", siteName: "Phoenix (old)" }, { callSign: "KWO39", siteName: "Chicago" }]
+  assert.deepEqual(catalog.mergeByCallSign(fresh, previous), [
+    { callSign: "KEC94", siteName: "Phoenix (new)" },
+    { callSign: "KWO39", siteName: "Chicago" }
+  ])
+  assert.deepEqual(catalog.mergeByCallSign([], previous), previous)
 })

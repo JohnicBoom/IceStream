@@ -29,11 +29,13 @@ Omarchy 4 bar widget + keep-loaded service. Plays **volunteer Icecast relays** o
 - No seek.
 - Own volume slider (mpv), so IceStream can sit in the background under other apps. Stock Audio widget stays system-wide.
 - No popover visualizer. The panel is for finding a station and starting it; then it stays out of the way. Playing state on the bar is the live mark (sound arcs).
-- Serialized transport: one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other.
+- Serialized transport: one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other. A new mpv only starts after `icestream-stop.sh` has finished and the previous mpv has exited.
+- **Playing** means mpv is decoding audio: the Service observes mpv's `core-idle` over the IPC socket (`Quickshell.Io.Socket`, no python). Until then it is **Connecting**. If mpv exits first, the state is **Offline** (error) with a message.
+- Locating (panel open, middle-click, Find closest) never touches playback or the saved station.
 - Bar: icon-only plus live mark (sound arcs, not animated) while actually streaming — silence on NWR must not look like stopped.
 - Locate: always name the NWS **covering** transmitter. Rank *online* options (wxradio Icecast or live Broadcastify listen page) by geocoded transmitter site distance — not RF maps. For Wood Dale / 60191: KWO39 covering, Icecast offline, Broadcastify offline; closest working online is **KZZ81 Lockport** (Broadcastify, ~38 km); **KXI58 Plano** is Icecast Available but farther (~56 km). Offer covering (honest Offline) plus those closer-to-farther online options. No map view for now.
 - Status words: **Available** (we can play Icecast), **Offline** (we cannot play), **Browser-only** (Broadcastify listen page).
-- Keys: Space play/stop, arrows in the list, `/` or filter field, Esc close, Tab to neighboring bar panels.
+- Keys: Space play/stop, Up/Down (or j/k) move through Closest stations then the relay list, Enter plays the highlighted row, `/` focuses the filter (Esc or Down returns to the list), Esc closes, Tab to neighboring bar panels.
 - Vertical bar: chip is a square `BarIconButton` slot; the radio mark should be fine. Still check `bar.vertical` once.
 
 ## Coverage (what NWS will actually tell us)
@@ -51,10 +53,15 @@ Locate UI: KWO39 is covering (Offline Icecast, Broadcastify page dead). Still of
 
 - **QML** (`ui/`): bar chip, popover, mpv process. Presentation and process wiring only.
 - **Service** owns playback so closing the popover does not stop audio.
-- **lib/*.js**: catalog, locate, match, player state, spectrum, Broadcastify listen-page map. Node-testable. QML imports the same files.
-- **Playback:** `bin/icestream-play.sh` → `exec /usr/bin/mpv` on the Icecast listen URL (`http://wxradio.org:8000/<mount>`). Do **not** rewrite to `https://wxradio.org/<mount>` as the play URL; that failed in mpv even when curl GET worked. Icecast often **400s HEAD**; probe with GET.
-- **Stop:** `bin/icestream-stop.sh` pkills only `mpv` with `--audio-client-name=icestream`. Call on stop, on play-fail, on Service destruction, and while UI is idle/error so orphans cannot outlive the UI.
+- **lib/*.js**: catalog, locate, match, player state + saved settings, mpv IPC lines, Broadcastify listen-page map. Node-testable. QML imports the same files.
+- **ui/Fetch.qml**: one-shot curl wrapper. Each run reports once with the token it was started with; locate chains ignore stale tokens.
+- **Playback:** `bin/icestream-play.sh` → `exec mpv` (from PATH) on the Icecast listen URL (`http://wxradio.org:8000/<mount>`). Do **not** rewrite to `https://wxradio.org/<mount>` as the play URL; that failed in mpv even when curl GET worked. Icecast often **400s HEAD**; probe with GET.
+- **Stop:** `bin/icestream-stop.sh` kills only mpv tagged `--script-opts=icestream=1` (pattern anchored so argv[0] is mpv) and waits until they exit. Called on stop, before every launch, once at Service start (orphans from an earlier shell), and detached (`Quickshell.execDetached`) on Service destruction. **No polling timer**: an earlier 1.5 s idle pkill loop cost a fork every 1.5 s forever and could kill freshly started streams.
 - **Locate:** On panel open: weather.json coords if set; else the same IP lookup weather uses (`https://wttr.in/?format=j1` `nearest_area` lat/lon, e.g. Lombard). Typed US ZIP still wins. The weather *name* is a label only. Then `api.weather.gov/points/{lat},{lon}` (4 decimal places). `GET /points/…/radio` is SSML, not the stream.
+- **Closest stations:** candidates are every transmitter whose SAME codes include the user's county (`/points` → `nwr.sameCode`), plus the covering one; fall back to the covering transmitter's SAME list if the point has no county code. Attach Icecast and Broadcastify by call sign. Rank by distance to NOAA **tower** coordinates (Broadcastify coordinates are only a fallback). KWO39's tower is downtown Chicago (41.8789, -87.6361) even though NWS lists its site city as Wood Dale.
+- **Transmitter list:** `data/nwr-transmitters.json` (bundled, ~1,035 transmitters: SAME codes, frequency, site, status, tower lat/lon), generated by `node scripts/build-nwr-transmitters.mjs` from NOAA's county coverage data `https://www.weather.gov/source/nwr/JS/ccl-data.js` (parsed as JSON, never evaluated). The Service loads the bundle at startup and refetches the source at startup and daily (~180 KB compressed); a download only replaces data if it parses as complete (≥ 900 transmitters). Rerun the script before releases.
+- **Do not use the NWS API `/radio` list:** every row is repeated ~64 times, so a 443 KB page of 500 rows holds only 8–9 transmitters; a full walk is ~130 pages / ~58 MB. `/radio/{callSign}` (single transmitter) is fine and is still the live fallback for the covering station.
+- **Catalog refresh** (Icecast, hourly) keeps the last good list when a fetch fails or parses empty.
 - **List ranking after locate:** `preferNearby` — overlapping call signs first, then same state, then the rest. Do not leave the raw Icecast order (AK/AZ/CA before IL).
 - **Theme:** `Color` / `Style` singletons. Do not import `QtQuick.Effects` (Omarchy blackholes it; the bar icon vanished). Draw the radio with `QtQuick.Shapes`.
 - **No spectrograph** in the popover (removed). Bar live mark only.
@@ -76,7 +83,7 @@ NOAA has ~1,000 VHF transmitters. Only volunteer Icecast relays are playable. wx
 
 ### Do this, in order
 
-1. **Keep wxradio.org as primary.** Refresh `status-json.xsl` (port 8000). New mounts appear without a code change if they follow `ST-Name-CALL`.
+1. **Keep wxradio.org as primary.** Refresh `https://wxradio.org/status-json.xsl` (HTTPS; its `listenurl`s are still the port-8000 play URLs). New mounts appear without a code change if they follow `ST-Name-CALL`.
 2. **Merge other free catalogs by call sign.** One station, several URLs; prefer a working Icecast listen URL.
    - weatherUSA: `https://radio.weatherusa.net/NWR/…` (volunteer Icecast, lots of overlap)
    - GWES WeatherRadio: https://weatherradio.org/ (~57 community streams)
@@ -93,6 +100,8 @@ RTL-SDR / local VHF is a later hardware feature, not an internet catalog.
 - `set -e` + `pgrep` with no matches in the play script exited **before** `exec mpv` → every station Offline.
 - Losing the Process handle left mpv running; only `omarchy restart shell` stopped it. Always pkill the plugin’s mpv client name on stop/fail/idle.
 - `QtQuick.Effects` / `MultiEffect` is blocked in third-party plugins.
+- `pkill -f` with an unanchored pattern also matches shells/editors whose command line contains the text. Keep the stop pattern anchored.
+- Quickshell `Process`: `running = true` while running queues one re-run with the latest command; a process that fails to start emits only `runningChanged` (no `exited`). Handle exits in `onRunningChanged`.
 - Covering transmitter from NWS may have **no** Icecast mount. Show that honestly; do not autoplay a distant same-state stream as if it were the local dish.
 - Marketplace listing is optional and pins a snapshot. Wait until playback stays healthy without a shell restart, then add `preview.png` and submit at https://plugins.omarchy.org/publish.html (GitHub issue on `omacom/omarchy-plugin-marketplace`). `omarchy plugin add` from the repo URL is enough to distribute.
 

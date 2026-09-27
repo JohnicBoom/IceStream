@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import qs.Ui
@@ -68,7 +70,11 @@ BarWidget {
     active: root.opened
     tooltipText: {
       var station = root.radioService ? root.radioService.station : null
-      var status = root.playing ? "Playing" : (root.radioService && root.radioService.playerState && root.radioService.playerState.status === "connecting" ? "Connecting" : "Idle")
+      var state = root.radioService ? root.radioService.playerState : null
+      var status = "Idle"
+      if (root.playing) status = "Playing"
+      else if (state && state.status === "connecting") status = "Connecting"
+      else if (state && state.status === "error") status = "Offline"
       if (!station || !station.callSign) return "IceStream — volunteer Icecast relay"
       var bits = [station.callSign]
       if (station.siteName) bits.push(station.siteName)
