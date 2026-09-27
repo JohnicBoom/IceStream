@@ -29,12 +29,12 @@ Omarchy 4 bar widget + keep-loaded service. Plays **volunteer Icecast relays** o
 - No seek.
 - Own volume slider (mpv), so IceStream can sit in the background under other apps. Stock Audio widget stays system-wide.
 - No popover visualizer. The panel is for finding a station and starting it; then it stays out of the way. Playing state on the bar is the live mark (sound arcs).
-- Serialized transport: one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other. A new mpv only starts after `icestream-stop.sh` has finished and the previous mpv has exited.
-- **Playing** means mpv is decoding audio: the Service observes mpv's `core-idle` over the IPC socket (`Quickshell.Io.Socket`, no python). Until then it is **Connecting**. If mpv exits first, the state is **Offline** (error) with a message.
+- Serialized transport (`lib/transport.js`): one play/stop at a time; ignore stale completions (`playToken`). Clicks cannot overtake each other. A new mpv only starts after `icestream-stop.sh` has finished and the previous mpv has exited.
+- **Playing** means mpv is decoding audio: `Playback.qml` observes mpv's `core-idle` over the IPC socket (`Quickshell.Io.Socket`, no python). Until then it is **Connecting**. If mpv exits first, the state is **Offline** (error) with a message.
 - Locating (panel open, middle-click, Find closest) never touches playback or the saved station.
 - Bar: icon-only plus live mark (sound arcs, not animated) while actually streaming — silence on NWR must not look like stopped.
-- Locate: always name the NWS **covering** transmitter. Rank *online* options (wxradio Icecast or live Broadcastify listen page) by geocoded transmitter site distance — not RF maps. For Wood Dale / 60191: KWO39 covering, Icecast offline, Broadcastify offline; closest working online is **KZZ81 Lockport** (Broadcastify, ~38 km); **KXI58 Plano** is Icecast Available but farther (~56 km). Offer covering (honest Offline) plus those closer-to-farther online options. No map view for now.
-- Status words: **Available** (we can play Icecast), **Offline** (we cannot play), **Browser-only** (Broadcastify listen page).
+- Locate: always name the NWS **covering** transmitter. Rank *online* options (wxradio Icecast or live Broadcastify listen page) first, then by distance to the NOAA transmitter **tower** — not RF maps. For Wood Dale / 60191: KWO39 covering (tower ~30 km, downtown Chicago), Icecast offline, Broadcastify offline; closest working online is **KZZ81 Lockport** (Browser-only, ~40 km); **KXI58 Plano** is Icecast Available but farther (~56 km). Offer covering (honest Offline) plus those online options. No map view for now.
+- Status words: **Available** (we can play Icecast), **Offline** (we cannot play; clicking the row explains instead of opening a dead page; also shown after a failed play), **Browser-only** (live Broadcastify listen page).
 - Keys: Space play/stop, Up/Down (or j/k) move through Closest stations then the relay list, Enter plays the highlighted row, `/` focuses the filter (Esc or Down returns to the list), Esc closes, Tab to neighboring bar panels.
 - Vertical bar: chip is a square `BarIconButton` slot; the radio mark should be fine. Still check `bar.vertical` once.
 
@@ -43,7 +43,7 @@ Omarchy 4 bar widget + keep-loaded service. Plays **volunteer Icecast relays** o
 Not fully black-and-white at city scale.
 
 - **Point → covering transmitter:** `GET /points/{lat},{lon}` → `properties.nwr.transmitter`. For Wood Dale / 60191 this is **KWO39 Chicago**. That is the NWS association for that point.
-- **County SAME list:** `GET /radio/{callSign}` `sameCodes` / `counties`. **KXI58 Plano includes DuPage `017043`.** Wood Dale is in DuPage, so Plano is a SAME-alerting transmitter for that **county**. A county can have several transmitters; the county table lists each on its own row.
+- **County SAME list:** per transmitter, from NOAA's county coverage data (bundled `data/nwr-transmitters.json`; `GET /radio/{callSign}` `sameCodes` agrees and is the live fallback). **KXI58 Plano includes DuPage `017043`.** Wood Dale is in DuPage, so Plano is a SAME-alerting transmitter for that **county**. A county can have several transmitters; the county table lists each on its own row.
 - **RF reception:** not binary. NWS coverage is “about 40 miles, level terrain,” with partial-county remarks and PCA partitions in some offices. We cannot say “you will hear Plano in Wood Dale.”
 - **Icecast:** independent of both. KWO39 has no wxradio.org mount. KXI58 does. Playing Plano is a *nearby Icecast*, not “the covering station.”
 
@@ -107,12 +107,24 @@ RTL-SDR / local VHF is a later hardware feature, not an internet catalog.
 ## Pitfalls already paid for
 
 - `set -e` + `pgrep` with no matches in the play script exited **before** `exec mpv` → every station Offline.
-- Losing the Process handle left mpv running; only `omarchy restart shell` stopped it. Always pkill the plugin’s mpv client name on stop/fail/idle.
+- Losing the Process handle left mpv running; only `omarchy restart shell` stopped it. Now: the stop script kills tagged mpv on stop, before every launch, once at startup, and on destruction. Never add a polling kill loop (an old 1.5 s one forked forever and killed new streams, including test mpv from other copies).
+- Omarchy hot reload does **not** load new plugin QML (no `Qt.clearComponentCache`; keepLoaded Service kept). Copying files to the installed plugin is not enough to test UI or Service changes: run `omarchy restart shell`.
+- Quickshell 0.3.1 `Socket`: after one failed connect, setting `connected = true` again does nothing. Create a fresh Socket per attempt (Playback.qml does).
+- `Qt.createComponent` of an edited file returns the cached old component; do not rely on hot reload in tests either.
+- When testing mpv by hand while an IceStream is running, use a copy with a different tag/client name (`scripts/integration.sh` does), or the running plugin's stop script may kill it.
 - `QtQuick.Effects` / `MultiEffect` is blocked in third-party plugins.
 - `pkill -f` with an unanchored pattern also matches shells/editors whose command line contains the text. Keep the stop pattern anchored.
 - Quickshell `Process`: `running = true` while running queues one re-run with the latest command; a process that fails to start emits only `runningChanged` (no `exited`). Handle exits in `onRunningChanged`.
 - Covering transmitter from NWS may have **no** Icecast mount. Show that honestly; do not autoplay a distant same-state stream as if it were the local dish.
-- Marketplace listing is optional and pins a snapshot. Wait until playback stays healthy without a shell restart, then add `preview.png` and submit at https://plugins.omarchy.org/publish.html (GitHub issue on `omacom/omarchy-plugin-marketplace`). `omarchy plugin add` from the repo URL is enough to distribute.
+- Marketplace listing is optional and pins a snapshot. `preview.png` is in the repo. Once playback has stayed healthy in real use, submit at https://plugins.omarchy.org/publish.html (GitHub issue on `omacom/omarchy-plugin-marketplace`). `omarchy plugin add` from the repo URL is enough to distribute.
+
+## Releasing
+
+1. Bump `version` in `manifest.json` **and** `CODE` in `lib/version.js` (a test fails if they differ; the update notice depends on it).
+2. Optionally refresh NOAA data: `node scripts/build-nwr-transmitters.mjs`.
+3. `bash scripts/check.sh` and `bash scripts/integration.sh`.
+4. Copy to the installed plugin, `omarchy restart shell`, try it in the bar.
+5. Commit and push. Users get it with `omarchy plugin update` + `omarchy restart shell`.
 
 ## Install for other people
 

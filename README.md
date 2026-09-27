@@ -16,7 +16,7 @@ Omarchy 4. Review the source, then:
 omarchy plugin add https://github.com/JohnicBoom/IceStream.git --enable
 ```
 
-Runtime needs **mpv** and **curl** (both ship with Omarchy).
+Runtime needs **mpv** and **curl** (both ship with Omarchy). IceStream runs its own mpv with `--no-config`, so your personal mpv settings and scripts do not affect it.
 
 ## Update
 
@@ -32,15 +32,20 @@ Omarchy keeps running the previous IceStream code until the shell restarts, so t
 - Left-click the bar radio: open or close the popover
 - Right-click: play/stop
 - Middle-click, or opening the panel: locate from Omarchy weather coordinates, or the same IP city weather shows before you set one
-- ZIP field: 5-digit US ZIP if you want a different place
+- ZIP field + **Find closest**: 5-digit US ZIP if you want a different place
 - Space: play/stop (the last station)
 - Up/Down or j/k: move through Closest stations and the relay list; Enter plays the highlighted row
 - `/`: filter the relay list (Esc or Down goes back to the list)
-- The stop square: stop while playing
+- The stop button: stop while playing
 - Escape: close
-- **Available**: play in IceStream
-- **Browser-only**: opens Broadcastify in the browser
-- **Offline**: no Icecast and no live Broadcastify page
+
+**Closest stations** lists the transmitter NWS says covers you plus every other transmitter NOAA lists for your county, working options first, then nearest tower. Each row is marked:
+
+- **Available**: plays in IceStream
+- **Browser-only**: opens the Broadcastify listen page in your browser
+- **Offline**: no stream and no live listen page (clicking says so)
+
+Below that, the full list of volunteer relays can be filtered by call sign, site, or state.
 
 Closing the panel does not stop audio. Right-click the bar or press stop.
 
