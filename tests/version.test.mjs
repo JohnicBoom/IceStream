@@ -34,6 +34,12 @@ test("restartNeeded when the installed files are newer than the running code", (
   assert.equal(version.restartNeeded("", version.CODE), false)
 })
 
+test("updateNotice is the popover restart chip", () => {
+  assert.equal(version.updateNotice("9.9.9"), "UPDATED TO 9.9.9 · RESTART THE SHELL")
+  assert.equal(version.updateNotice(version.CODE), "UPDATED · RESTART THE SHELL")
+  assert.equal(version.updateNotice(""), "UPDATED · RESTART THE SHELL")
+})
+
 test("restartNeeded when the kept Service is older than the bar code", () => {
   assert.equal(version.restartNeeded(version.CODE, "0.2.0"), true)
   assert.equal(version.restartNeeded(version.CODE, undefined), true)

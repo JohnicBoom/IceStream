@@ -21,9 +21,11 @@ BarWidget {
   readonly property string runningVersion: Version.CODE
   property string installedVersion: ""
   readonly property bool serviceStale: Version.restartNeeded(installedVersion, radioService ? radioService.codeVersion : null)
-  readonly property string restartNotice: installedVersion && installedVersion !== runningVersion
-    ? "IceStream " + installedVersion + " is installed. Run `omarchy restart shell` to finish updating."
-    : "IceStream was updated. Run `omarchy restart shell` to finish."
+  readonly property string restartNotice: Version.updateNotice(installedVersion)
+
+  function restartShell() {
+    Quickshell.execDetached(["omarchy", "restart", "shell"])
+  }
 
   function checkForUpdate() {
     manifestFile.reload()

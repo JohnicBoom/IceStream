@@ -25,7 +25,7 @@ omarchy plugin update com.johnicboom.icestream
 omarchy restart shell
 ```
 
-Omarchy keeps running the previous IceStream code until the shell restarts, so the new version only takes effect after `omarchy restart shell`. From 0.3.0 on, the bar tooltip and popover say when a restart is needed; the popover shows the running version in its bottom-right corner.
+Omarchy keeps running the previous IceStream code until the shell restarts, so the new version only takes effect after `omarchy restart shell`. From 0.3.0 on, the bar tooltip and popover say when a restart is needed. The popover chip restarts the shell when clicked, and the running version stays in the bottom-right corner.
 
 ## Use
 

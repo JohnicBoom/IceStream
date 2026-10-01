@@ -195,15 +195,35 @@ Panel {
         width: scroll.width
         spacing: Style.space(8)
 
-        Text {
-          width: parent.width
+        // Same chip as OmaStorm: an update is on disk, and the click
+        // restarts the shell (BarWidget.restartShell).
+        Rectangle {
+          id: updateButton
           visible: root.hostWidget !== null && root.hostWidget.serviceStale === true
-          text: root.hostWidget ? root.hostWidget.restartNotice : ""
-          color: Color.accent
-          font.family: root.contentFont
-          font.pixelSize: Style.font.body
-          font.bold: true
-          wrapMode: Text.WordWrap
+          implicitWidth: updateLabel.implicitWidth + Style.space(10)
+          implicitHeight: Style.space(20)
+          color: updateMouse.containsMouse
+            ? Style.hoverFillFor(root.contentForeground, Color.accent)
+            : Qt.alpha(Color.popups.background, 0.92)
+          border.width: 1
+          border.color: Color.accent
+
+          Text {
+            id: updateLabel
+            anchors.centerIn: parent
+            text: root.hostWidget ? root.hostWidget.restartNotice : ""
+            color: Color.accent
+            font.family: root.contentFont
+            font.pixelSize: 10
+          }
+
+          MouseArea {
+            id: updateMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (root.hostWidget) root.hostWidget.restartShell()
+          }
         }
 
         Row {
