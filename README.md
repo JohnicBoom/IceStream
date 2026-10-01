@@ -21,7 +21,7 @@ Runtime needs **mpv** and **curl** (both ship with Omarchy). IceStream runs its 
 ## Update
 
 ```sh
-omarchy plugin update io.github.johnicboom.icestream
+omarchy plugin update com.johnicboom.icestream
 omarchy restart shell
 ```
 

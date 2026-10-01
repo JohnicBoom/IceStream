@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.johnicboom.icestream",
+  "id": "com.johnicboom.icestream",
   "name": "IceStream",
   "version": "0.3.0",
   "author": "John Pappas",
