@@ -2,18 +2,16 @@ import QtQuick
 import Quickshell.Io
 import "../lib/catalog.js" as Catalog
 import "../lib/match.js" as Match
-import "../lib/broadcastify.js" as Broadcastify
 import "../lib/nwr.js" as Nwr
 
-// Reference data: live Icecast mounts (hourly), NOAA transmitters (bundled,
-// refreshed daily), and the hand-maintained Broadcastify listen-page map.
-// A failed or incomplete refresh never replaces good data.
+// Reference data: live Icecast mounts (hourly) and NOAA transmitters
+// (bundled, refreshed daily). A failed or incomplete refresh never
+// replaces good data.
 Item {
   id: root
 
   property var streams: []
   property var transmitters: []
-  property var broadcastifyCatalog: []
   property bool freshTransmitters: false
 
   function filePath(url) {
@@ -62,13 +60,6 @@ Item {
     running: true
     repeat: true
     onTriggered: root.refreshTransmitters()
-  }
-
-  FileView {
-    path: root.filePath(Qt.resolvedUrl("../data/broadcastify-nwr.json"))
-    watchChanges: true
-    printErrors: false
-    onLoaded: root.broadcastifyCatalog = Broadcastify.parseCatalog(text())
   }
 
   FileView {

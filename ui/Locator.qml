@@ -118,7 +118,6 @@ Item {
     root.locateOptions = Locate.buildLocateOptions({
       covering: result.station,
       streams: root.catalogs.streams,
-      broadcastify: root.catalogs.broadcastifyCatalog,
       transmitters: root.catalogs.transmitters,
       origin: root.lastOrigin,
       sameCode: sameCode
@@ -132,7 +131,6 @@ Item {
     root.nearbyCallSigns = calls
     var kind = Locate.optionKind(coveringOption || result.station)
     if (kind === "available") root.showMessage(title + " is the covering station (Available).")
-    else if (kind === "browser-only") root.showMessage(title + " is the covering station (Browser-only).")
     else root.showMessage(title + " is the covering station. No volunteer Icecast for it.")
   }
 

@@ -2,7 +2,7 @@
 
 Volunteer Icecast relays of NOAA Weather Radio in the Omarchy bar.
 
-Directly stream broadcasts from [wxradio.org](https://wxradio.org). If a transmitter has no wxradio stream, IceStream may offer a [Broadcastify](https://www.broadcastify.com) listen page. Those must be used in a browser; they cannot be streamed inside the plugin.
+Directly stream broadcasts from [wxradio.org](https://wxradio.org). Only transmitters with a volunteer Icecast mount can be played. The rest are listed as Offline.
 
 This is **not** a dedicated NOAA Weather Radio receiver and is not for protection of life or property. Only a subset of NWR transmitters have a volunteer Icecast mount.
 
@@ -42,8 +42,7 @@ Omarchy keeps running the previous IceStream code until the shell restarts, so t
 **Closest stations** lists the transmitter NWS says covers you plus every other transmitter NOAA lists for your county, working options first, then nearest tower. Each row is marked:
 
 - **Available**: plays in IceStream
-- **Browser-only**: opens the Broadcastify listen page in your browser
-- **Offline**: no stream and no live listen page (clicking says so)
+- **Offline**: no volunteer Icecast stream (clicking says so)
 
 Below that, the full list of volunteer relays can be filtered by call sign, site, or state.
 

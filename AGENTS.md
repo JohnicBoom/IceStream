@@ -7,5 +7,5 @@ Read **docs/CONTEXT.md** before changing this plugin. That file is the shared pr
 - Domain logic in `lib/` (Node-tested); QML in `ui/` only wires processes and UI. Playback ordering belongs in `lib/transport.js`, not in `ui/Playback.qml`.
 - Tests first: `node --test tests/*.test.mjs`. Before handing off: `bash scripts/check.sh` (tests + `omarchy plugin validate` + qmllint). For playback/locate changes also `bash scripts/integration.sh` (real mpv + live endpoints, isolated from real playback).
 - Releases: bump `manifest.json` `version` and `lib/version.js` `CODE` together.
-- Do not play Broadcastify audio. Do not import `QtQuick.Effects`. Do not add polling kill loops.
+- Icecast only. Do not add Broadcastify (listen pages or audio); their terms forbid the way this plugin used them. Do not import `QtQuick.Effects`. Do not add polling kill loops.
 - Play URL is the Icecast listenurl on port 8000, not the https://wxradio.org/ rewrite.

@@ -1,12 +1,11 @@
 import QtQuick
 import "../lib/locate.js" as Locate
 import "../lib/match.js" as Match
-import "../lib/broadcastify.js" as Broadcastify
 import "../lib/version.js" as Version
 
 // Keep-loaded service facade used by BarWidget and Panel. The work lives in
 // Playback (mpv), Locator (covering + Closest stations), and Catalogs
-// (Icecast mounts, NOAA transmitters, Broadcastify map).
+// (Icecast mounts, NOAA transmitters).
 Item {
   id: root
 
@@ -46,17 +45,11 @@ Item {
     playback.playStation(Match.stationFromStream(stream, catalogs.transmitters))
   }
 
-  // Closest-stations row: play, open a live Broadcastify page, or explain.
+  // Closest-stations row: play an Icecast mount, or explain why it cannot.
   function activateOption(option) {
     var action = Locate.optionAction(option)
     if (action === "play") playback.playStation(option)
-    else if (action === "browser") root.openBroadcastify({ url: option.broadcastifyUrl, feedId: 0 })
-    else if (option) root.locateMessage = option.callSign + " has no working stream or listen page right now."
-  }
-
-  function openBroadcastify(feed) {
-    var url = feed && feed.url ? feed.url : Broadcastify.listenUrl(feed && feed.feedId)
-    if (url) Qt.openUrlExternally(url)
+    else if (option) root.locateMessage = option.callSign + " has no volunteer Icecast stream right now."
   }
 
   Catalogs { id: catalogs }

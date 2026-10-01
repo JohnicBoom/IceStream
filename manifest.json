@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "id": "com.johnicboom.icestream",
   "name": "IceStream",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "John Pappas",
   "license": "MIT",
   "homepage": "https://github.com/JohnicBoom/IceStream",
-  "description": "Directly stream NOAA Weather Radio broadcasts from volunteer relays on wxradio. If there is no wxradio stream, a Broadcastify listen page may be offered (browser only).",
+  "description": "Directly stream NOAA Weather Radio broadcasts from volunteer Icecast relays on wxradio.",
   "kinds": ["bar-widget", "service"],
   "keepLoaded": true,
   "entryPoints": {

@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "../lib/locate.js" as Locate
 import "../lib/version.js" as Version
 
 Panel {
@@ -144,10 +145,7 @@ Panel {
   }
 
   function optionKindLabel(opt) {
-    if (!opt) return "Offline"
-    if (opt.streamUrl) return "Available"
-    if (opt.broadcastifyUrl && opt.broadcastifyOnline !== false) return "Browser-only"
-    return "Offline"
+    return Locate.optionKind(opt) === "available" ? "Available" : "Offline"
   }
 
   KeyboardPanel {
@@ -506,7 +504,7 @@ Panel {
 
         Text {
           width: parent.width
-          text: "IceStream plays volunteer Icecast relays from wxradio.org. Broadcastify links open in a browser and cannot be streamed here."
+          text: "IceStream plays volunteer Icecast relays from wxradio.org. A transmitter with no relay is marked Offline."
           color: root.contentForeground
           opacity: 0.55
           font.family: root.contentFont
