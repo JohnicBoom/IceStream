@@ -3,13 +3,13 @@
 This file is the project memory. The GitHub repo is the shared copy; this chat is not.
 
 Repo: https://github.com/JohnicBoom/IceStream
-Plugin id: `io.github.johnicboom.icestream`
+Plugin id: `com.johnicboom.icestream`
 Local source: `/home/john/Work/IceStream`
-Installed (bar): `~/.config/omarchy/plugins/io.github.johnicboom.icestream` — **plain copy, not a git clone**. Edits in Work do not update the bar until copied. `omarchy plugin update` will not work until the install is a clone.
+Installed (bar): `~/.config/omarchy/plugins/com.johnicboom.icestream` — **plain copy, not a git clone**. Edits in Work do not update the bar until copied. `omarchy plugin update` will not work until the install is a clone.
 
 ## Display name (decided)
 
-**IceStream.** Plugin id stays `io.github.johnicboom.icestream` until a marketplace listing forces a freeze.
+**IceStream.** Plugin id is `com.johnicboom.icestream`. A marketplace listing would freeze that id.
 
 Description (honest, user-facing):
 

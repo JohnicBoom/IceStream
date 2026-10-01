@@ -66,6 +66,6 @@ Node is only for tests. `bash scripts/check.sh` runs tests, `omarchy plugin vali
 ## Remove
 
 ```sh
-omarchy plugin remove io.github.johnicboom.icestream
+omarchy plugin remove com.johnicboom.icestream
 rm -rf ~/.local/state/icestream
 ```

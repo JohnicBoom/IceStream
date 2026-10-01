@@ -15,7 +15,7 @@ Item {
 
   // Evaluated once when this instance is created; see lib/version.js.
   readonly property string codeVersion: Version.CODE
-  readonly property string pluginId: "io.github.johnicboom.icestream"
+  readonly property string pluginId: "com.johnicboom.icestream"
 
   property string locateMessage: ""
   property string searchQuery: ""

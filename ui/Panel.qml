@@ -8,7 +8,7 @@ import "../lib/version.js" as Version
 
 Panel {
   id: root
-  moduleName: "io.github.johnicboom.icestream"
+  moduleName: "com.johnicboom.icestream"
   manageIpc: false
 
   property var anchorItem: null

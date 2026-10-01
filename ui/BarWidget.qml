@@ -9,7 +9,7 @@ import "../lib/version.js" as Version
 
 BarWidget {
   id: root
-  moduleName: "io.github.johnicboom.icestream"
+  moduleName: "com.johnicboom.icestream"
 
   readonly property var radioService: bar && bar.shell && bar.shell.serviceFor
     ? bar.shell.serviceFor(moduleName)
