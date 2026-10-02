@@ -100,18 +100,59 @@ test("clampVolume rounds and clamps to 0..100", () => {
   assert.equal(player.clampVolume(-5), 0)
   assert.equal(player.clampVolume(250), 100)
   assert.equal(player.clampVolume("nope"), null)
+  assert.equal(player.clampVolume("50"), 50)
+  assert.equal(player.clampVolume(50), 50)
+  assert.equal(player.clampVolume(""), null)
+  assert.equal(player.clampVolume("  "), null)
 })
 
-test("settings round-trip station and volume", () => {
-  const raw = player.serializeSettings(phoenix, 40, true)
+test("settings round-trip station and consent, and still read an old volume", () => {
+  const raw = player.serializeSettings(phoenix, true)
   assert.deepEqual(player.parseSettings(raw), {
     station: {
       callSign: "KEC94",
       streamUrl: "http://wxradio.org:8000/AZ-Phoenix-KEC94"
     },
-    volume: 40,
+    volume: null,
     networkLocate: true
   })
+  assert.equal(player.parseSettings(JSON.stringify({ volume: "50", networkLocate: false })).volume, 50)
+})
+
+test("a dead relay is Offline, and a missing player is not", () => {
+  const relay = player.playbackFailure(2, "Failed to open http://wxradio.org:8000/x.", false, true)
+  assert.equal(relay.kind, "relay")
+  assert.equal(relay.label, "Offline")
+  assert.match(player.playbackSentence(relay.kind, "KXI58"), /relay did not start/)
+
+  const missing = player.playbackFailure(127, "icestream: mpv not found in PATH", false, true)
+  assert.equal(missing.kind, "needs-mpv")
+  assert.equal(missing.label, "Needs mpv")
+  assert.doesNotMatch(player.playbackSentence(missing.kind, "KXI58"), /relay did not start/)
+
+  const prefixed = player.playbackFailure(2, "icestream: refusing url", false, true)
+  assert.equal(prefixed.kind, "could-not-start")
+  assert.equal(prefixed.label, "Cannot play")
+
+  const codeOnly = player.playbackFailure(64, "", false, true)
+  assert.equal(codeOnly.kind, "could-not-start")
+
+  const never = player.playbackFailure(null, "", false, false)
+  assert.equal(never.kind, "did-not-start")
+  assert.equal(never.label, "Cannot play")
+  assert.equal(player.playbackSentence(never.kind, "KXI58"), "IceStream's player did not start.")
+
+  const stopped = player.playbackFailure(2, "", true, true)
+  assert.equal(stopped.kind, "stopped")
+  assert.equal(player.playbackSentence(stopped.kind, "KXI58"), "KXI58 stream stopped.")
+})
+
+test("dependency notice names only the programs that are missing", () => {
+  assert.equal(player.dependencyNotice("mpv ok\npython ok\ncurl ok\n", true), "")
+  assert.equal(player.dependencyNotice("", false), "IceStream's player did not start.")
+  assert.match(player.dependencyNotice("icestream: mpv not found\npython ok\ncurl ok\n", true), /needs mpv/)
+  assert.match(player.dependencyNotice("mpv ok\nicestream: python not found\nicestream: curl not found\n", true), /needs Python/)
+  assert.match(player.dependencyNotice("mpv ok\nicestream: python not found\nicestream: curl not found\n", true), /needs curl/)
 })
 
 test("parseSettings tolerates old files and junk", () => {

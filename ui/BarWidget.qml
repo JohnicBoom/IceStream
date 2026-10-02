@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
+import "../lib/player.js" as Player
 import "../lib/text.js" as TextLib
 import "../lib/version.js" as Version
 
@@ -35,6 +36,40 @@ BarWidget {
 
   function checkForUpdate() {
     root.readManifest()
+  }
+
+  function entryVolume() {
+    if (!root.settings || root.settings.volume === undefined || root.settings.volume === null) return null
+    return Player.clampVolume(root.settings.volume)
+  }
+
+  // updateEntryInline replaces the whole entry, so copy every current key.
+  function writeVolume(volume) {
+    var n = Player.clampVolume(volume)
+    if (n === null || root.entryVolume() === n) return
+    var entry = { id: root.moduleName }
+    var current = root.settings || {}
+    for (var key in current) if (key !== "id") entry[key] = current[key]
+    entry.volume = n
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
+  function syncVolumeFromEntry() {
+    if (!root.radioService) return
+    var n = root.entryVolume()
+    if (n !== null) {
+      root.radioService.adoptEntryVolume(n)
+      return
+    }
+    if (root.radioService.migrateVolume) root.writeVolume(root.radioService.volumeForEntry)
+  }
+
+  function persistLiveVolume() {
+    if (!root.radioService || !root.radioService.settingsLoaded) return
+    if (root.entryVolume() === root.radioService.volume) return
+    root.writeVolume(root.radioService.volume)
   }
 
   function readManifest() {
@@ -75,8 +110,19 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   onBarChanged: injectPanel()
+  onSettingsChanged: syncVolumeFromEntry()
+  onRadioServiceChanged: syncVolumeFromEntry()
 
-  Component.onCompleted: root.readManifest()
+  Component.onCompleted: {
+    root.readManifest()
+    root.syncVolumeFromEntry()
+  }
+
+  Connections {
+    target: root.radioService
+    function onMigrateVolumeChanged() { root.syncVolumeFromEntry() }
+    function onVolumeChanged() { root.persistLiveVolume() }
+  }
 
   // Watch only. The bytes are read by the state helper, with a size cap.
   FileView {
@@ -121,7 +167,7 @@ BarWidget {
       var label = "IceStream — volunteer Icecast relay"
       if (root.playing) status = "Playing"
       else if (state && state.status === "connecting") status = "Connecting"
-      else if (state && state.status === "error") status = "Offline"
+      else if (state && state.status === "error") status = state.error || "Offline"
       if (root.serviceStale) label = root.restartNotice
       else if (station && station.callSign) {
         var bits = [station.callSign]

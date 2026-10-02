@@ -1,5 +1,6 @@
 import QtQuick
 import "../lib/catalog.js" as Catalog
+import "../lib/locate.js" as Locate
 import "../lib/match.js" as Match
 import "../lib/nwr.js" as Nwr
 
@@ -13,6 +14,15 @@ Item {
   property var streams: []
   property var transmitters: []
   property bool freshTransmitters: false
+  property string helperNotice: ""
+
+  // A failed refresh never replaces a list that already loaded. The notice
+  // is only for an empty list when Python or curl itself is missing.
+  function noteHelper(started, errorLine) {
+    if (root.streams.length) return
+    var kind = Locate.helperFailure(started, errorLine)
+    if (kind) root.helperNotice = Locate.helperMessage(kind)
+  }
 
   readonly property string py: "/usr/bin/python3"
   readonly property string fetchScript: filePath(Qt.resolvedUrl("../bin/icestream-fetch.py"))
@@ -63,9 +73,14 @@ Item {
 
   Fetch {
     id: icecastFetch
-    onDone: function(text, token) {
+    onDone: function(text, token, errorLine, started) {
       var parsed = Catalog.parseIcecastStatus(text)
-      if (parsed.length) root.streams = parsed
+      if (parsed.length) {
+        root.streams = parsed
+        root.helperNotice = ""
+        return
+      }
+      root.noteHelper(started, errorLine)
     }
   }
 

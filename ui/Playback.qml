@@ -8,9 +8,9 @@ import "../lib/transport.js" as Transport
 import "../lib/mpv.js" as Mpv
 
 // Playback: user-facing state (lib/player.js), process sequencing
-// (lib/transport.js), mpv IPC, and saved settings (station + volume +
-// network-location consent). This file only performs the effects
-// transport.js returns.
+// (lib/transport.js), mpv IPC, and saved station + network-location
+// consent. Volume lives on the bar entry. This file only performs the
+// effects transport.js returns.
 Item {
   id: root
 
@@ -23,7 +23,15 @@ Item {
   property bool ipcConnected: false
   property string connectingMessage: ""
   property bool settingsLoaded: false
+  property bool volumeTouched: false
+  property bool entryVolumeSet: false
+  property bool migrateVolume: false
+  property int volumeForEntry: 75
   property string pendingPayload: ""
+  property string mpvStderr: ""
+  property bool mpvResultSent: false
+  property bool mpvStarted: false
+  property int mpvWatch: 0
 
   readonly property bool playing: playerState.status === "playing"
   readonly property bool connecting: playerState.status === "connecting"
@@ -42,6 +50,7 @@ Item {
   readonly property string stateScript: filePath(Qt.resolvedUrl("../bin/icestream-state.py"))
   readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
   readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
+  readonly property string checkScript: filePath(Qt.resolvedUrl("../bin/icestream-check.sh"))
 
   signal showMessage(string text)
   signal clearMessage(string text)
@@ -97,10 +106,22 @@ Item {
 
   function setVolume(value) {
     var n = Player.clampVolume(value)
-    if (n === null) return
+    if (n === null || n === root.volume) return
+    if (!root.settingsLoaded) root.volumeTouched = true
     root.volume = n
     root.sendIpc(Mpv.setVolumeCommand(n))
     persistDebounce.restart()
+  }
+
+  // The bar entry is the volume source of truth once it has a number.
+  // A drag before the state file loads still wins over that file.
+  function adoptEntryVolume(value) {
+    var n = Player.clampVolume(value)
+    if (n === null) return
+    root.entryVolumeSet = true
+    if (n === root.volume) return
+    root.volume = n
+    root.sendIpc(Mpv.setVolumeCommand(n))
   }
 
   // Remembered opt-in for the wttr.in lookup. A click before the settings
@@ -128,22 +149,27 @@ Item {
       stopProc.running = true
     } else if (effect.type === "launch") {
       root.ipcAttempts = 0
+      root.mpvWatch = root.mpvWatch + 1
+      root.mpvResultSent = false
+      root.mpvStarted = false
+      root.mpvStderr = ""
       mpvProc.command = effect.command
       mpvProc.running = true
     } else if (effect.type === "ended") {
-      root.streamEnded(effect.token)
+      root.streamEnded(effect)
     }
   }
 
   // mpv exited with nothing queued. After an explicit stop this is expected.
-  function streamEnded(token) {
+  // playerState.error is the short label. The sentence goes to locateMessage.
+  function streamEnded(effect) {
+    var token = effect.token
     if (token !== root.playerState.playToken || !Player.isActive(root.playerState)) return
     var wasPlaying = root.playerState.status === "playing"
     var call = root.playerState.station ? root.playerState.station.callSign : "Stream"
-    root.playerState = Player.playFail(root.playerState, token, wasPlaying ? "stream stopped" : "stream offline")
-    root.showMessage(wasPlaying
-      ? call + " stream stopped."
-      : call + " is Offline right now (the relay did not start).")
+    var failure = Player.playbackFailure(effect.exitCode, effect.stderrLine, wasPlaying, effect.started)
+    root.playerState = Player.playFail(root.playerState, token, failure.label)
+    root.showMessage(Player.playbackSentence(failure.kind, call))
   }
 
   function markLive() {
@@ -194,7 +220,7 @@ Item {
 
   function persist() {
     if (!root.settingsLoaded) return
-    root.pendingPayload = Player.serializeSettings(root.playerState.station, root.volume, root.networkLocate)
+    root.pendingPayload = Player.serializeSettings(root.playerState.station, root.networkLocate)
     stateWrite.command = [root.py, "-I", "-S", root.stateScript, "write-state"]
     if (stateWrite.running) stateWrite.running = false
     stateWrite.running = true
@@ -203,19 +229,43 @@ Item {
   function applySettings(raw) {
     if (root.settingsLoaded) return
     var settings = Player.parseSettings(raw)
-    if (settings.volume !== null) root.volume = settings.volume
+    if (!root.volumeTouched && !root.entryVolumeSet && settings.volume !== null)
+      root.volume = settings.volume
     if (settings.station && root.playerState.status === "idle" && !root.playerState.station)
       root.playerState = Player.withStation(root.playerState, settings.station)
     var granted = root.networkLocate
     if (!root.networkLocate) root.networkLocate = settings.networkLocate === true
     root.settingsLoaded = true
+    root.volumeForEntry = root.volume
+    if (!root.entryVolumeSet) root.migrateVolume = true
     if (granted) root.persist()
+  }
+
+  function rememberMpvStderr(chunk) {
+    var next = root.mpvStderr + String(chunk || "")
+    if (next.length > 1024) next = next.slice(next.length - 1024)
+    root.mpvStderr = next
+  }
+
+  // `exited` carries the code. `runningChanged` is the only signal when the
+  // process never starts, and it can also arrive first on a normal exit.
+  // Defer that path so an exit code queued in the same turn wins.
+  function finishMpv(exitCode, started, watch) {
+    if (watch !== root.mpvWatch || root.mpvResultSent) return
+    root.mpvResultSent = true
+    root.dispatch({
+      type: "mpvExited",
+      exitCode: exitCode,
+      stderrLine: Player.lastStderrLine(root.mpvStderr),
+      started: started
+    })
   }
 
   // Kill orphans from an earlier shell once; no polling.
   Component.onCompleted: {
     root.dispatch({ type: "start" })
     stateRead.fetch([root.py, "-I", "-S", root.stateScript, "read-state"], 1, 8192)
+    depCheck.fetch([root.checkScript], 1, 1024)
   }
   // A child Process would be torn down with this object before the stop script runs.
   Component.onDestruction: Quickshell.execDetached([root.stopScript])
@@ -248,6 +298,14 @@ Item {
     onDone: function(text, token) { root.applySettings(text) }
   }
 
+  Fetch {
+    id: depCheck
+    onDone: function(text, token, errorLine, started) {
+      var message = Player.dependencyNotice(text, started)
+      if (message) root.showMessage(message)
+    }
+  }
+
   // stdin stays enabled: Quickshell cannot turn it back on after false.
   // One JSON line is written when the process starts. The helper stops at
   // the newline, because this pipe is never closed.
@@ -269,12 +327,27 @@ Item {
     }
   }
 
-  // Exit handling lives in onRunningChanged, not onExited: a Process that
-  // fails to start only emits runningChanged.
+  // A process that fails to start emits runningChanged and no exited.
   Process {
     id: mpvProc
     stdinEnabled: false
-    onRunningChanged: if (!running) root.dispatch({ type: "mpvExited" })
+    stderr: SplitParser {
+      splitMarker: ""
+      onRead: function(text) { root.rememberMpvStderr(text) }
+    }
+    onStarted: root.mpvStarted = true
+    onExited: function(exitCode, exitStatus) {
+      var watch = root.mpvWatch
+      root.finishMpv(exitCode, true, watch)
+    }
+    // `started` is the only signal a failed launch never emits. Capture it
+    // now: this handler can run a turn before `exited`, and the next launch
+    // clears the property.
+    onRunningChanged: if (!running) {
+      var watch = root.mpvWatch
+      var started = root.mpvStarted
+      Qt.callLater(function() { root.finishMpv(null, started, watch) })
+    }
   }
 
   Process {

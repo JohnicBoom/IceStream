@@ -25,7 +25,11 @@ Item {
   readonly property bool connecting: playback.connecting
   readonly property var station: playback.station
   readonly property int volume: playback.volume
+  readonly property bool settingsLoaded: playback.settingsLoaded
+  readonly property bool migrateVolume: playback.migrateVolume
+  readonly property int volumeForEntry: playback.volumeForEntry
   readonly property bool needsNetworkConsent: locator.needsConsent
+  property string shownHelperNotice: ""
 
   readonly property var streams: catalogs.streams
   readonly property var transmitters: catalogs.transmitters
@@ -44,6 +48,7 @@ Item {
   function togglePlay() { playback.togglePlay() }
   function stop() { playback.stop() }
   function setVolume(value) { playback.setVolume(value) }
+  function adoptEntryVolume(value) { playback.adoptEntryVolume(value) }
   function locateClosest() { return locator.locateQuery(root.zipText) }
   function locateOnOpen() {
     catalogs.refreshOnOpen()
@@ -64,6 +69,20 @@ Item {
   }
 
   Catalogs { id: catalogs }
+
+  Connections {
+    target: catalogs
+    function onHelperNoticeChanged() {
+      var next = catalogs.helperNotice
+      if (next) {
+        root.locateMessage = next
+        root.shownHelperNotice = next
+      } else if (root.shownHelperNotice && root.locateMessage === root.shownHelperNotice) {
+        root.locateMessage = ""
+        root.shownHelperNotice = ""
+      }
+    }
+  }
 
   Locator {
     id: locator

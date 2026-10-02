@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.johnicboom.icestream",
   "name": "IceStream",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "author": "John Pappas",
   "license": "MIT",
   "homepage": "https://github.com/JohnicBoom/IceStream",
@@ -18,6 +18,18 @@
     "description": "Volunteer Icecast relays of NOAA Weather Radio",
     "category": "Weather",
     "allowMultiple": false,
-    "defaultSection": "center"
+    "defaultSection": "center",
+    "defaults": { "volume": 75 },
+    "schema": [
+      {
+        "key": "volume",
+        "type": "integer",
+        "label": "Volume",
+        "description": "IceStream playback volume. Other apps keep their own volume.",
+        "defaultValue": 75,
+        "min": 0,
+        "max": 100
+      }
+    ]
   }
 }

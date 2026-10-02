@@ -71,7 +71,7 @@ test("state helper does not touch the real settings when HOME is different", () 
 test("state helper reads the manifest and bundle, and refuses a stand-in", () => {
   const manifest = run(stateScript, ["read-manifest", join(root, "manifest.json")])
   assert.equal(manifest.status, 0)
-  assert.match(manifest.stdout, /"version": "0.3.6"/)
+  assert.match(manifest.stdout, /"version": "0.3.7"/)
 
   const bundle = run(stateScript, ["read-bundle", join(root, "data/nwr-transmitters.json")])
   assert.equal(bundle.status, 0)
@@ -106,7 +106,8 @@ test("play script refuses a bad url before it can remove the socket", () => {
     encoding: "utf8",
     timeout: 2000,
   })
-  assert.equal(bad.status, 2)
+  assert.equal(bad.status, 64)
+  assert.match(bad.stderr, /^icestream:/)
   assert.deepEqual(stamp(socket), before)
   assert.equal(runtime, "/run/user/" + uid)
 
@@ -116,7 +117,8 @@ test("play script refuses a bad url before it can remove the socket", () => {
     encoding: "utf8",
     timeout: 2000,
   })
-  assert.equal(wrongSock.status, 2)
+  assert.equal(wrongSock.status, 64)
+  assert.match(wrongSock.stderr, /^icestream:/)
   assert.equal(existsSync(missing), false)
 
   const dotted = spawnSync("bash", [playScript, socket, "http://wxradio.org:8000/../KEC94", "08"], {
@@ -124,6 +126,7 @@ test("play script refuses a bad url before it can remove the socket", () => {
     encoding: "utf8",
     timeout: 2000,
   })
-  assert.equal(dotted.status, 2)
+  assert.equal(dotted.status, 64)
+  assert.match(dotted.stderr, /^icestream:/)
   assert.deepEqual(stamp(socket), before)
 })

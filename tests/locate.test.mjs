@@ -346,3 +346,12 @@ test("optionAction plays Available and does nothing for Offline", () => {
   assert.equal(locate.optionAction(null), "none")
   assert.equal(locate.optionKind(null), "offline")
 })
+
+test("a helper that never started is Python, and curl is only the curl line", () => {
+  assert.equal(locate.helperFailure(false, ""), "python")
+  assert.equal(locate.helperFailure(true, "icestream: curl not found"), "curl")
+  assert.equal(locate.helperFailure(true, ""), "")
+  assert.equal(locate.lookupFailureMessage(false, "", "Could not look up that ZIP code."), "IceStream needs Python.")
+  assert.equal(locate.lookupFailureMessage(true, "", "Could not look up that ZIP code."), "Could not look up that ZIP code.")
+  assert.equal(locate.lookupFailureMessage(true, "icestream: curl not found", "NWS did not return a covering transmitter."), "IceStream needs curl.")
+})

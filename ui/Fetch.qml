@@ -8,7 +8,9 @@ import Quickshell.Io
 // stdout uses an empty split marker: Quickshell emits each chunk immediately
 // and does not buffer until the process exits. Past `byteCap` characters the
 // body is dropped and the process is signalled. A failed command reports
-// empty text. The Timer sits beside the Process because Process has no
+// empty text. The last stderr line and whether the process started are
+// reported with it: a process that fails to start never emits `exited`.
+// The Timer sits beside the Process because Process has no
 // default property for child objects.
 Item {
   id: root
@@ -17,10 +19,25 @@ Item {
   property int startedToken: 0
   property int byteCap: 0
   property string body: ""
+  property string stderrText: ""
   property bool overflow: false
   readonly property bool running: proc.running
 
-  signal done(string text, int token)
+  signal done(string text, int token, string errorLine, bool started)
+
+  function rememberStderr(chunk) {
+    var next = root.stderrText + String(chunk || "")
+    if (next.length > 1024) next = next.slice(next.length - 1024)
+    root.stderrText = next
+  }
+
+  function stderrLine() {
+    var parts = root.stderrText.split("\n")
+    for (var i = parts.length - 1; i >= 0; i--) {
+      if (parts[i]) return parts[i]
+    }
+    return ""
+  }
 
   // Same sequencing as before: stop the old process, then start the new one.
   // The old run still reports, but with an empty body, because the buffer is
@@ -29,6 +46,7 @@ Item {
     root.pendingToken = token
     root.byteCap = cap
     root.body = ""
+    root.stderrText = ""
     root.overflow = false
     killTimer.stop()
     proc.running = false
@@ -56,7 +74,7 @@ Item {
 
     stderr: SplitParser {
       splitMarker: ""
-      onRead: function(text) {}
+      onRead: function(text) { root.rememberStderr(text) }
     }
 
     onStarted: {
@@ -70,15 +88,18 @@ Item {
       if (root.startedToken) {
         var token = root.startedToken
         var text = root.overflow ? "" : root.body
+        var line = root.stderrLine()
         root.startedToken = 0
         root.body = ""
+        root.stderrText = ""
         root.overflow = false
-        root.done(text, token)
+        root.done(text, token, line, true)
       } else if (root.pendingToken) {
         // Failed to start: Process emits no `started`/`exited` in that case.
         var failed = root.pendingToken
         root.pendingToken = 0
-        root.done("", failed)
+        root.stderrText = ""
+        root.done("", failed, "", false)
       }
     }
   }

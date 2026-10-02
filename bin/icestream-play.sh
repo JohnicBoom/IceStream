@@ -7,35 +7,35 @@ sock=$1
 url=$2
 vol=${3:-75}
 if [ -z "$sock" ] || [ -z "$url" ]; then
-  echo "usage: icestream-play.sh <ipc-socket> <url> [volume]" >&2
-  exit 2
+  echo "icestream: refusing arguments" >&2
+  exit 64
 fi
 
 uid=$(id -u)
 runtime=${XDG_RUNTIME_DIR-}
 if [ -z "$runtime" ] || [ "$runtime" != "/run/user/$uid" ] || [ "$sock" != "$runtime/icestream.mpv.sock" ]; then
   echo "icestream: refusing socket" >&2
-  exit 2
+  exit 64
 fi
 
 case "$url" in
   http://wxradio.org:8000/*) ;;
-  *) echo "icestream: refusing url" >&2; exit 2 ;;
+  *) echo "icestream: refusing url" >&2; exit 64 ;;
 esac
 mount=${url#http://wxradio.org:8000/}
 if [ -z "$mount" ] || [ "${#mount}" -gt 80 ]; then
   echo "icestream: refusing url" >&2
-  exit 2
+  exit 64
 fi
 case "$mount" in
-  *[!A-Za-z0-9._~/-]*|*//*|*/*/*) echo "icestream: refusing url" >&2; exit 2 ;;
+  *[!A-Za-z0-9._~/-]*|*//*|*/*/*) echo "icestream: refusing url" >&2; exit 64 ;;
 esac
 old_ifs=$IFS
 IFS=/
 set -f
 for seg in $mount; do
   case "$seg" in
-    ""|.|..) echo "icestream: refusing url" >&2; exit 2 ;;
+    ""|.|..) echo "icestream: refusing url" >&2; exit 64 ;;
   esac
 done
 set +f
@@ -43,7 +43,7 @@ IFS=$old_ifs
 
 case "$vol" in
   [0-9]|[1-9][0-9]|100) ;;
-  *) echo "icestream: refusing volume" >&2; exit 2 ;;
+  *) echo "icestream: refusing volume" >&2; exit 64 ;;
 esac
 
 mpv_bin=$(command -v mpv) || { echo "icestream: mpv not found in PATH" >&2; exit 127; }

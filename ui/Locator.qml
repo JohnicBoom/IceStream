@@ -248,11 +248,11 @@ Item {
 
   Fetch {
     id: zipFetch
-    onDone: function(text, token) {
+    onDone: function(text, token, errorLine, started) {
       if (token !== root.locateToken) return
       var place = Locate.parseZipLookup(text)
       if (!place) {
-        root.showMessage("Could not look up that ZIP code.")
+        root.showMessage(Locate.lookupFailureMessage(started, errorLine, "Could not look up that ZIP code."))
         return
       }
       root.locateCoords(place.latitude, place.longitude, place.city, token)
@@ -261,11 +261,11 @@ Item {
 
   Fetch {
     id: wttrFetch
-    onDone: function(text, token) {
+    onDone: function(text, token, errorLine, started) {
       if (token !== root.locateToken) return
       var place = Locate.parseWttrNearestArea(text)
       if (!place) {
-        root.showMessage("Could not detect location. Enter a US ZIP code.")
+        root.showMessage(Locate.lookupFailureMessage(started, errorLine, "Could not detect location. Enter a US ZIP code."))
         return
       }
       root.locateCoords(place.latitude, place.longitude, place.name, token)
@@ -274,11 +274,11 @@ Item {
 
   Fetch {
     id: pointsFetch
-    onDone: function(text, token) {
+    onDone: function(text, token, errorLine, started) {
       if (token !== root.locateToken) return
       var point = Locate.parseNwsPoints(text)
       if (!point) {
-        root.showMessage("NWS did not return a covering transmitter.")
+        root.showMessage(Locate.lookupFailureMessage(started, errorLine, "NWS did not return a covering transmitter."))
         return
       }
       root.applyCovering(point.transmitter, point.sameCode, token)
@@ -287,8 +287,14 @@ Item {
 
   Fetch {
     id: transmitterFetch
-    onDone: function(text, token) {
+    onDone: function(text, token, errorLine, started) {
       if (token !== root.locateToken) return
+      var help = Locate.lookupFailureMessage(started, errorLine, "")
+      if (help && !text) {
+        root.showMessage(help)
+        root.pendingCovering = ""
+        return
+      }
       var tx = Locate.parseNwsTransmitter(text)
       if (tx) root.catalogs.rememberTransmitter(tx)
       var callSign = (tx && tx.callSign) || root.pendingCovering

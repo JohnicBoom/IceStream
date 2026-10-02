@@ -222,6 +222,9 @@ def main(argv):
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
+    except FileNotFoundError:
+        sys.stderr.write("icestream: curl not found\n")
+        fail()
     except OSError:
         fail()
     body = read_bounded(proc, cap, deadline)

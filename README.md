@@ -49,7 +49,13 @@ Below that, the full list of volunteer relays can be filtered by call sign, site
 
 Closing the panel does not stop audio. Right-click the bar or press stop.
 
-Volume in the popover is IceStream-only, so other apps can stay louder. It is remembered across restarts, along with the last station and the network-location choice, in `~/.local/state/icestream/state.json`.
+Volume in the popover is IceStream-only, so other apps can stay louder. It is remembered on the IceStream bar entry in `~/.config/omarchy/shell.json`. A number has to be passed as JSON:
+
+```sh
+omarchy bar set com.johnicboom.icestream volume 50 --json
+```
+
+The last station and the network-location choice stay in `~/.local/state/icestream/state.json`.
 
 IceStream talks to these addresses:
 
@@ -79,4 +85,4 @@ omarchy plugin remove com.johnicboom.icestream
 omarchy restart shell
 ```
 
-That leaves `~/.local/state/icestream/state.json` in place (last station, volume, and network-location choice). Delete that file if you want those forgotten.
+That leaves `~/.local/state/icestream/state.json` in place (last station and network-location choice). Delete that file if you want those forgotten. Volume was on the bar entry, and removing the plugin removes that entry.

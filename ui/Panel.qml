@@ -91,7 +91,7 @@ Panel {
     var status = radio.playerState.status
     if (status === "playing") return "Playing"
     if (status === "connecting") return "Connecting"
-    if (status === "error") return "Offline"
+    if (status === "error") return radio.playerState.error || "Offline"
     return "Idle"
   }
 

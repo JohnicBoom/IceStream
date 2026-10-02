@@ -118,6 +118,20 @@ test("mpv exiting on its own reports ended with its token", () => {
   assert.equal(state.mpvToken, 0)
 })
 
+test("an ended effect keeps the exit code and stderr line", () => {
+  const launched = transport.step(transport.initial(), play(4)).state
+  const ended = transport.step(launched, {
+    type: "mpvExited",
+    exitCode: 2,
+    stderrLine: "Failed to open.",
+    started: true
+  }).effects.find((effect) => effect.type === "ended")
+  assert.equal(ended.token, 4)
+  assert.equal(ended.exitCode, 2)
+  assert.equal(ended.stderrLine, "Failed to open.")
+  assert.equal(ended.started, true)
+})
+
 test("a launch that fails to start behaves like an exit", () => {
   const { log } = run([play(1), { type: "mpvExited" }, play(2)])
   assert.deepEqual(log, [
