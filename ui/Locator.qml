@@ -1,66 +1,137 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../lib/catalog.js" as Catalog
 import "../lib/locate.js" as Locate
 import "../lib/match.js" as Match
 
 // Finds the covering transmitter and Closest stations. Chain:
-// ZIP (zippopotam) | weather.json | IP (wttr.in) -> NWS /points -> transmitter.
-// Every chain carries the token it started with; stale results are ignored.
-// Never touches playback.
+// ZIP (zippopotam) | weather.json | consented wttr.in -> NWS /points -> transmitter.
+// The whole chain has one 20 second budget. Every chain carries the token
+// it started with; stale results are ignored. Never touches playback.
 Item {
   id: root
 
   required property var catalogs
+  property bool consent: false
 
   property var locateOptions: []
   property string nearbyState: ""
   property var nearbyCallSigns: []
   property var lastOrigin: null
+  property var weather: null
+  property bool weatherReady: false
+  property bool openWaiting: false
+  property string queuedZip: ""
+  property bool needsConsent: false
   property int locateToken: 0
+  property real locateStarted: 0
   property string pendingCovering: ""
   property string pendingSameCode: ""
 
+  readonly property string py: "/usr/bin/python3"
+  readonly property string fetchScript: filePath(Qt.resolvedUrl("../bin/icestream-fetch.py"))
+  readonly property string stateScript: filePath(Qt.resolvedUrl("../bin/icestream-state.py"))
+  readonly property int bodyCap: 256 * 1024
+
   signal showMessage(string text)
+
+  function filePath(url) {
+    var s = String(url || "")
+    return s.indexOf("file://") === 0 ? s.slice(7) : s
+  }
 
   function beginLocate() {
     root.locateToken += 1
+    root.locateStarted = Date.now()
     root.pendingCovering = ""
     root.pendingSameCode = ""
+    root.needsConsent = false
     return root.locateToken
   }
 
-  function weatherRaw() {
-    try { return weatherFile.text() } catch (e) { return "" }
+  function secondsLeft() {
+    var left = Math.floor((20000 - (Date.now() - root.locateStarted)) / 1000)
+    if (left < 1) return 0
+    if (left > 20) return 20
+    return left
   }
 
-  // Typed ZIP wins, then Omarchy weather coordinates, then IP location.
+  function runFetch(proc, op, args, token) {
+    if (token !== root.locateToken) return
+    var seconds = root.secondsLeft()
+    if (seconds < 1) {
+      root.showMessage("Location lookup timed out.")
+      return
+    }
+    var cmd = [root.py, "-I", "-S", root.fetchScript, op]
+    for (var i = 0; i < args.length; i++) cmd.push(String(args[i]))
+    cmd.push(String(seconds))
+    proc.fetch(cmd, token, root.bodyCap)
+  }
+
+  function readWeather() {
+    weatherFetch.fetch([root.py, "-I", "-S", root.stateScript, "read-weather"], 1, 8192)
+  }
+
+  function applyWeather(text) {
+    root.weather = Locate.parseWeatherLocation(text)
+    var first = !root.weatherReady
+    root.weatherReady = true
+    if (first && root.openWaiting) root.finishOpen()
+  }
+
+  function finishOpen() {
+    root.openWaiting = false
+    var plan = Locate.openPlan(root.queuedZip, root.weather, root.consent)
+    root.needsConsent = plan.kind === "consent"
+    if (plan.kind === "skip" || plan.kind === "consent") return
+    if (plan.kind === "coords") {
+      if (root.sameOrigin(root.lastOrigin, plan) && root.locateOptions.length) return
+      root.locateCoords(plan.latitude, plan.longitude, plan.label || "weather location")
+      return
+    }
+    if (plan.kind === "network") {
+      if (root.locateOptions.length) return
+      root.locateFromNetwork()
+    }
+  }
+
+  // On panel open: a typed ZIP is left alone. Otherwise weather, then a
+  // consented network lookup, otherwise the panel asks.
+  function locateOnOpen(zipText) {
+    root.queuedZip = String(zipText || "")
+    root.openWaiting = true
+    if (!root.weatherReady) return
+    root.finishOpen()
+  }
+
+  // Find-closest and middle-click. Returns the plan kind. "consent" means
+  // nothing was requested.
   function locateQuery(zipText) {
     var parsed = Locate.parsePlaceQuery(zipText)
     if (parsed) {
+      root.needsConsent = false
       root.locateZip(parsed.zip)
-      return
+      return "zip"
     }
-    var weather = Locate.parseWeatherLocation(root.weatherRaw())
-    if (weather.latitude !== null && weather.longitude !== null) {
-      root.locateCoords(weather.latitude, weather.longitude, weather.name)
-      return
+    if (!root.weatherReady) return "consent"
+    var plan = Locate.queryPlan(zipText, root.weather, root.consent)
+    if (plan.kind === "zip") {
+      root.needsConsent = false
+      root.locateZip(plan.zip)
+      return "zip"
     }
-    root.locateFromNetwork()
-  }
-
-  // On panel open: skip if a ZIP is typed or the same place is already listed.
-  function locateOnOpen(zipText) {
-    if (Locate.parsePlaceQuery(zipText)) return
-    var weather = Locate.parseWeatherLocation(root.weatherRaw())
-    if (weather.latitude !== null && weather.longitude !== null) {
-      if (root.sameOrigin(root.lastOrigin, weather) && root.locateOptions.length) return
-      root.locateCoords(weather.latitude, weather.longitude, weather.name || "weather location")
-      return
+    if (plan.kind === "coords") {
+      root.needsConsent = false
+      root.locateCoords(plan.latitude, plan.longitude, plan.label || "weather location")
+      return "coords"
     }
-    if (root.locateOptions.length) return
-    root.locateFromNetwork()
+    if (plan.kind === "network") {
+      root.locateFromNetwork()
+      return "network"
+    }
+    root.needsConsent = true
+    return "consent"
   }
 
   function sameOrigin(a, b) {
@@ -72,25 +143,25 @@ Item {
   function locateZip(zip) {
     var token = root.beginLocate()
     root.showMessage("Looking up " + zip + "…")
-    zipFetch.fetch(["curl", "-fsS", "--max-time", "8", "https://api.zippopotam.us/us/" + zip], token)
+    root.runFetch(zipFetch, "zip", [zip], token)
   }
 
   function locateFromNetwork() {
     var token = root.beginLocate()
     root.showMessage("Finding covering station from network location…")
-    wttrFetch.fetch(["curl", "-fsS", "--max-time", "10", "https://wttr.in/?format=j1"], token)
+    root.runFetch(wttrFetch, "wttr", [], token)
   }
 
   function locateCoords(lat, lon, label, token) {
     if (!token) token = root.beginLocate()
-    root.lastOrigin = { latitude: Number(lat), longitude: Number(lon) }
-    var url = Locate.nwsPointUrl(lat, lon)
-    if (!url) {
+    var parts = Locate.nwsPointParts(lat, lon)
+    if (!parts) {
       root.showMessage("Weather location is missing coordinates.")
       return
     }
+    root.lastOrigin = { latitude: Number(parts.latitude), longitude: Number(parts.longitude) }
     root.showMessage("Finding covering station" + (label ? " for " + label : "") + "…")
-    pointsFetch.fetch(["curl", "-fsSL", "--max-redirs", "3", "--max-time", "8", "-A", Catalog.userAgent, "-H", "Accept: application/geo+json", url], token)
+    root.runFetch(pointsFetch, "points", [parts.latitude, parts.longitude], token)
   }
 
   function applyCovering(callSign, sameCode, token) {
@@ -99,9 +170,14 @@ Item {
       root.finishCovering(callSign, root.pendingSameCode)
       return
     }
-    root.pendingCovering = String(callSign || "").toUpperCase()
-    root.showMessage("Looking up transmitter " + root.pendingCovering + "…")
-    transmitterFetch.fetch(["curl", "-fsS", "--max-time", "8", "-A", Catalog.userAgent, "-H", "Accept: application/ld+json", "https://api.weather.gov/radio/" + root.pendingCovering], token)
+    var call = String(callSign || "").toUpperCase()
+    if (!Locate.nwsRadioUrl(call)) {
+      root.showMessage("No NOAA Weather Radio transmitter found.")
+      return
+    }
+    root.pendingCovering = call
+    root.showMessage("Looking up transmitter " + call + "…")
+    root.runFetch(transmitterFetch, "radio", [call], token)
   }
 
   function finishCovering(callSign, sameCode) {
@@ -134,11 +210,26 @@ Item {
     else root.showMessage(title + " is the covering station. No volunteer Icecast for it.")
   }
 
+  onConsentChanged: {
+    if (root.consent && root.needsConsent) root.locateFromNetwork()
+  }
+
+  Component.onCompleted: root.readWeather()
+
   FileView {
-    id: weatherFile
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/settings/weather.json"
+    id: weatherWatch
+    path: (Quickshell.env("HOME") || "") + "/.local/state/omarchy/settings/weather.json"
+    preload: false
+    blockAllReads: true
+    blockLoading: true
     watchChanges: true
     printErrors: false
+    onFileChanged: root.readWeather()
+  }
+
+  Fetch {
+    id: weatherFetch
+    onDone: function(text, token) { root.applyWeather(text) }
   }
 
   Fetch {
@@ -188,7 +279,6 @@ Item {
       if (tx) root.catalogs.rememberTransmitter(tx)
       var callSign = (tx && tx.callSign) || root.pendingCovering
       root.pendingCovering = ""
-      // Without NWS metadata, resolveCovering still works from a stream.
       root.finishCovering(callSign, root.pendingSameCode)
     }
   }

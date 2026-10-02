@@ -16,7 +16,7 @@ Omarchy 4. Review the source, then:
 omarchy plugin add https://github.com/JohnicBoom/IceStream.git --enable
 ```
 
-Runtime needs **mpv** and **curl** (both ship with Omarchy). IceStream runs its own mpv with `--no-config`, so your personal mpv settings and scripts do not affect it.
+Runtime needs **mpv**, **curl**, and **Python**. All three already ship with Omarchy: Python is installed because Omarchy depends on `uwsm`, and `uwsm` depends on `python`. IceStream does not ask you to install a package for it. It runs its own mpv with `--no-config`, so your personal mpv settings and scripts do not affect it.
 
 ## Update
 
@@ -31,7 +31,8 @@ Omarchy keeps running the previous IceStream code until the shell restarts, so t
 
 - Left-click the bar radio: open or close the popover
 - Right-click: play/stop
-- Middle-click, or opening the panel: locate from Omarchy weather coordinates, or the same IP city weather shows before you set one
+- Middle-click: locate from a typed ZIP, or from Omarchy weather coordinates. If neither is set, the popover opens and waits. It does not send your IP address until you press **Use network location**
+- Opening the panel locates the same way, and refreshes the live relay list and the NOAA transmitter file. Closing the panel does not schedule another download. The shell does not download those lists at startup
 - ZIP field + **Find closest**: 5-digit US ZIP if you want a different place
 - Space: play/stop (the last station)
 - Up/Down or j/k: move through Closest stations and the relay list; Enter plays the highlighted row
@@ -48,7 +49,16 @@ Below that, the full list of volunteer relays can be filtered by call sign, site
 
 Closing the panel does not stop audio. Right-click the bar or press stop.
 
-Volume in the popover is IceStream-only, so other apps can stay louder. It is remembered across restarts.
+Volume in the popover is IceStream-only, so other apps can stay louder. It is remembered across restarts, along with the last station and the network-location choice, in `~/.local/state/icestream/state.json`.
+
+IceStream talks to these addresses:
+
+- `https://wxradio.org/status-json.xsl` — live relay list, when the panel opens. Playback stays on `http://wxradio.org:8000/<mount>`
+- `https://www.weather.gov/source/nwr/JS/ccl-data.js` — NOAA transmitter file, when the panel opens. The copy shipped in the plugin is used until that refresh succeeds
+- `https://api.zippopotam.us/us/<zip>` — when you look up a ZIP
+- `https://api.weather.gov/points/<lat>,<lon>` — covering transmitter for a ZIP, for Omarchy weather coordinates, or for a consented network location. Omarchy's own weather location (read from `weather.json`, not requested by this plugin) also comes from api.weather.gov
+- `https://api.weather.gov/radio/<call>` — one transmitter, only if it is not already in the NOAA list
+- `https://wttr.in/?format=j1` — only after **Use network location**. That sends your IP address to wttr.in
 
 ## Develop
 
@@ -66,5 +76,7 @@ Node is only for tests. `bash scripts/check.sh` runs tests, `omarchy plugin vali
 
 ```sh
 omarchy plugin remove com.johnicboom.icestream
-rm -rf ~/.local/state/icestream
+omarchy restart shell
 ```
+
+That leaves `~/.local/state/icestream/state.json` in place (last station, volume, and network-location choice). Delete that file if you want those forgotten.

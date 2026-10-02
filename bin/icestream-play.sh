@@ -2,6 +2,7 @@
 # Start mpv as this process (exec). Do not pgrep/kill here: a failed pgrep
 # under `set -e` once exited before mpv ran, which made every station Offline.
 # Stopping is icestream-stop.sh's job; it matches the tag below.
+# Checks run before `rm -f` so a rejected URL cannot unlink a live socket.
 sock=$1
 url=$2
 vol=${3:-75}
@@ -9,6 +10,42 @@ if [ -z "$sock" ] || [ -z "$url" ]; then
   echo "usage: icestream-play.sh <ipc-socket> <url> [volume]" >&2
   exit 2
 fi
+
+uid=$(id -u)
+runtime=${XDG_RUNTIME_DIR-}
+if [ -z "$runtime" ] || [ "$runtime" != "/run/user/$uid" ] || [ "$sock" != "$runtime/icestream.mpv.sock" ]; then
+  echo "icestream: refusing socket" >&2
+  exit 2
+fi
+
+case "$url" in
+  http://wxradio.org:8000/*) ;;
+  *) echo "icestream: refusing url" >&2; exit 2 ;;
+esac
+mount=${url#http://wxradio.org:8000/}
+if [ -z "$mount" ] || [ "${#mount}" -gt 80 ]; then
+  echo "icestream: refusing url" >&2
+  exit 2
+fi
+case "$mount" in
+  *[!A-Za-z0-9._~/-]*|*//*|*/*/*) echo "icestream: refusing url" >&2; exit 2 ;;
+esac
+old_ifs=$IFS
+IFS=/
+set -f
+for seg in $mount; do
+  case "$seg" in
+    ""|.|..) echo "icestream: refusing url" >&2; exit 2 ;;
+  esac
+done
+set +f
+IFS=$old_ifs
+
+case "$vol" in
+  [0-9]|[1-9][0-9]|100) ;;
+  *) echo "icestream: refusing volume" >&2; exit 2 ;;
+esac
+
 mpv_bin=$(command -v mpv) || { echo "icestream: mpv not found in PATH" >&2; exit 127; }
 rm -f "$sock"
 export PIPEWIRE_PROPS="{ application.name=IceStream }"

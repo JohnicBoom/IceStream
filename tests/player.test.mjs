@@ -103,13 +103,40 @@ test("clampVolume rounds and clamps to 0..100", () => {
 })
 
 test("settings round-trip station and volume", () => {
-  const raw = player.serializeSettings(phoenix, 40)
-  assert.deepEqual(player.parseSettings(raw), { station: phoenix, volume: 40 })
+  const raw = player.serializeSettings(phoenix, 40, true)
+  assert.deepEqual(player.parseSettings(raw), {
+    station: {
+      callSign: "KEC94",
+      streamUrl: "http://wxradio.org:8000/AZ-Phoenix-KEC94"
+    },
+    volume: 40,
+    networkLocate: true
+  })
 })
 
 test("parseSettings tolerates old files and junk", () => {
-  assert.deepEqual(player.parseSettings(JSON.stringify({ station: phoenix })), { station: phoenix, volume: null })
-  assert.deepEqual(player.parseSettings("{"), { station: null, volume: null })
-  assert.deepEqual(player.parseSettings(""), { station: null, volume: null })
-  assert.deepEqual(player.parseSettings(JSON.stringify({ volume: 900 })), { station: null, volume: 100 })
+  assert.deepEqual(player.parseSettings(JSON.stringify({ station: phoenix })), {
+    station: {
+      callSign: "KEC94",
+      streamUrl: "http://wxradio.org:8000/AZ-Phoenix-KEC94"
+    },
+    volume: null,
+    networkLocate: false
+  })
+  assert.deepEqual(player.parseSettings("{"), { station: null, volume: null, networkLocate: false })
+  assert.deepEqual(player.parseSettings(""), { station: null, volume: null, networkLocate: false })
+  assert.deepEqual(player.parseSettings(JSON.stringify({ volume: 900 })), { station: null, volume: 100, networkLocate: false })
+})
+
+test("parseSettings drops a station whose play address is not the wxradio relay", () => {
+  const foreign = player.parseSettings(JSON.stringify({
+    station: { callSign: "KEC94", streamUrl: "http://127.0.0.1/x" },
+    volume: 10
+  }))
+  assert.equal(foreign.station, null)
+  assert.equal(foreign.volume, 10)
+  const badCall = player.parseSettings(JSON.stringify({
+    station: { callSign: "../KEC94", streamUrl: "http://wxradio.org:8000/AZ-Phoenix-KEC94" }
+  }))
+  assert.equal(badCall.station, null)
 })

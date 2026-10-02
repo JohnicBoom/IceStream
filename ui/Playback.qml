@@ -8,27 +8,38 @@ import "../lib/transport.js" as Transport
 import "../lib/mpv.js" as Mpv
 
 // Playback: user-facing state (lib/player.js), process sequencing
-// (lib/transport.js), mpv IPC, and saved settings (station + volume).
-// This file only performs the effects transport.js returns.
+// (lib/transport.js), mpv IPC, and saved settings (station + volume +
+// network-location consent). This file only performs the effects
+// transport.js returns.
 Item {
   id: root
 
   property var playerState: Player.initialState()
   property var transport: Transport.initial()
   property int volume: 75
+  property bool networkLocate: false
   property int ipcAttempts: 0
   property var mpvIpc: null
   property bool ipcConnected: false
   property string connectingMessage: ""
   property bool settingsLoaded: false
+  property string pendingPayload: ""
 
   readonly property bool playing: playerState.status === "playing"
   readonly property bool connecting: playerState.status === "connecting"
   readonly property var station: playerState.station
   readonly property int mpvToken: transport.mpvToken
 
-  readonly property string ipcPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/icestream.mpv.sock"
-  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/icestream/state.json"
+  readonly property string ipcPath: {
+    var runtime = String(Quickshell.env("XDG_RUNTIME_DIR") || "")
+    var prefix = "/run/user/"
+    if (runtime.indexOf(prefix) !== 0) return ""
+    var rest = runtime.slice(prefix.length)
+    if (!/^[0-9]+$/.test(rest)) return ""
+    return runtime + "/icestream.mpv.sock"
+  }
+  readonly property string py: "/usr/bin/python3"
+  readonly property string stateScript: filePath(Qt.resolvedUrl("../bin/icestream-state.py"))
   readonly property string playScript: filePath(Qt.resolvedUrl("../bin/icestream-play.sh"))
   readonly property string stopScript: filePath(Qt.resolvedUrl("../bin/icestream-stop.sh"))
 
@@ -45,6 +56,10 @@ Item {
   function playStation(station) {
     if (!station || !station.streamUrl) {
       root.showMessage(station ? (station.callSign + " has no live stream to play here.") : "No station selected.")
+      return
+    }
+    if (!root.ipcPath) {
+      root.showMessage("IceStream cannot find a per-user runtime directory.")
       return
     }
     if (Player.isActiveStream(root.playerState, station.streamUrl)) {
@@ -86,6 +101,14 @@ Item {
     root.volume = n
     root.sendIpc(Mpv.setVolumeCommand(n))
     persistDebounce.restart()
+  }
+
+  // Remembered opt-in for the wttr.in lookup. A click before the settings
+  // file has loaded must not be overwritten by that later read.
+  function allowNetworkLocate() {
+    if (root.networkLocate) return
+    root.networkLocate = true
+    root.persist()
   }
 
   // ---- transport ---------------------------------------------------------
@@ -170,23 +193,31 @@ Item {
   // ---- settings ------------------------------------------------------------
 
   function persist() {
-    var payload = Player.serializeSettings(root.playerState.station, root.volume)
-    persistProc.command = ["sh", "-c", "mkdir -p \"$HOME/.local/state/icestream\" && printf '%s\\n' \"$1\" > \"$HOME/.local/state/icestream/state.json\"", "icestream-state", payload]
-    persistProc.running = true
+    if (!root.settingsLoaded) return
+    root.pendingPayload = Player.serializeSettings(root.playerState.station, root.volume, root.networkLocate)
+    stateWrite.command = [root.py, "-I", "-S", root.stateScript, "write-state"]
+    if (stateWrite.running) stateWrite.running = false
+    stateWrite.running = true
   }
 
   function applySettings(raw) {
     if (root.settingsLoaded) return
-    root.settingsLoaded = true
     var settings = Player.parseSettings(raw)
     if (settings.volume !== null) root.volume = settings.volume
     if (settings.station && root.playerState.status === "idle" && !root.playerState.station)
       root.playerState = Player.withStation(root.playerState, settings.station)
+    var granted = root.networkLocate
+    if (!root.networkLocate) root.networkLocate = settings.networkLocate === true
+    root.settingsLoaded = true
+    if (granted) root.persist()
   }
 
   // Kill orphans from an earlier shell once; no polling.
-  Component.onCompleted: root.dispatch({ type: "start" })
-  // A child Process would be torn down with this object before pkill runs.
+  Component.onCompleted: {
+    root.dispatch({ type: "start" })
+    stateRead.fetch([root.py, "-I", "-S", root.stateScript, "read-state"], 1, 8192)
+  }
+  // A child Process would be torn down with this object before the stop script runs.
   Component.onDestruction: Quickshell.execDetached([root.stopScript])
 
   Timer {
@@ -212,13 +243,19 @@ Item {
     }
   }
 
-  FileView {
-    path: root.statePath
-    printErrors: false
-    onLoaded: root.applySettings(text())
+  Fetch {
+    id: stateRead
+    onDone: function(text, token) { root.applySettings(text) }
   }
 
-  Process { id: persistProc }
+  // stdin stays enabled: Quickshell cannot turn it back on after false.
+  // One JSON line is written when the process starts. The helper stops at
+  // the newline, because this pipe is never closed.
+  Process {
+    id: stateWrite
+    stdinEnabled: true
+    onStarted: stateWrite.write(root.pendingPayload + "\n")
+  }
 
   Component {
     id: ipcComponent

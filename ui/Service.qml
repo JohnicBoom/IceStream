@@ -25,6 +25,7 @@ Item {
   readonly property bool connecting: playback.connecting
   readonly property var station: playback.station
   readonly property int volume: playback.volume
+  readonly property bool needsNetworkConsent: locator.needsConsent
 
   readonly property var streams: catalogs.streams
   readonly property var transmitters: catalogs.transmitters
@@ -38,8 +39,13 @@ Item {
   function togglePlay() { playback.togglePlay() }
   function stop() { playback.stop() }
   function setVolume(value) { playback.setVolume(value) }
-  function locateClosest() { locator.locateQuery(root.zipText) }
-  function locateOnOpen() { locator.locateOnOpen(root.zipText) }
+  function locateClosest() { return locator.locateQuery(root.zipText) }
+  function locateOnOpen() {
+    catalogs.refreshOnOpen()
+    locator.locateOnOpen(root.zipText)
+  }
+  function ensureCatalogs() { catalogs.refreshOnOpen() }
+  function grantNetworkLocate() { playback.allowNetworkLocate() }
 
   function selectStream(stream) {
     playback.playStation(Match.stationFromStream(stream, catalogs.transmitters))
@@ -57,6 +63,7 @@ Item {
   Locator {
     id: locator
     catalogs: catalogs
+    consent: playback.networkLocate
     onShowMessage: function(text) { root.locateMessage = text }
   }
 

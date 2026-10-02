@@ -39,6 +39,7 @@ test("parseCclData returns [] for junk or a changed format", () => {
 test("looksComplete rejects a partial or empty download", () => {
   assert.equal(nwr.looksComplete(nwr.parseCclData(excerpt)), false)
   assert.equal(nwr.looksComplete(new Array(1000).fill({ callSign: "X" })), true)
+  assert.equal(nwr.looksComplete(new Array(2001).fill({ callSign: "KWO39" })), false)
 })
 
 test("serializeBundle and parseBundle round-trip", () => {

@@ -39,6 +39,7 @@ ShellRoot {
     {
       name: "catalogs load (Icecast + NOAA bundle)",
       timeout: 25000,
+      action: function() { svc.ensureCatalogs() },
       until: function() { return svc.streams.length > 1 && svc.transmitters.length >= 900 },
       after: function() {
         harness.firstStream = svc.streams[0]

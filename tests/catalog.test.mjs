@@ -48,8 +48,24 @@ test("playableStreamUrl keeps the Icecast listenurl so mpv can connect", () => {
   )
   assert.equal(
     catalog.playableStreamUrl("AZ-Phoenix-KEC94"),
-    "https://wxradio.org/AZ-Phoenix-KEC94"
+    "http://wxradio.org:8000/AZ-Phoenix-KEC94"
   )
+  assert.equal(
+    catalog.playableStreamUrl("https://wxradio.org/MA-Bourne/Hyannis-KEC73"),
+    "http://wxradio.org:8000/MA-Bourne/Hyannis-KEC73"
+  )
+})
+
+test("playableStreamUrl refuses any host that is not the wxradio relay", () => {
+  assert.equal(catalog.playableStreamUrl("http://127.0.0.1/x"), "")
+  assert.equal(catalog.playableStreamUrl("http://10.1.2.3/x"), "")
+  assert.equal(catalog.playableStreamUrl("http://169.254.169.254/latest"), "")
+  assert.equal(catalog.playableStreamUrl("http://evil.example/AZ-Phoenix-KEC94"), "")
+  assert.equal(catalog.playableStreamUrl("http://wxradio.org:8000/../etc/passwd"), "")
+  assert.equal(catalog.playableStreamUrl("http://user@wxradio.org:8000/AZ-Phoenix-KEC94"), "")
+  assert.equal(catalog.playableStreamUrl("http://wxradio.org:8000/AZ-Phoenix-KEC94?x=1"), "")
+  assert.equal(catalog.playableStreamUrl("file:///etc/passwd"), "")
+  assert.equal(catalog.playableStreamUrl("http://wxradio.org:8000/" + "A".repeat(81)), "")
 })
 
 test("httpsStreamUrl rewrites Icecast listenurl to the public https form", () => {
@@ -83,6 +99,22 @@ test("parseIcecastStatus wraps a single source object", () => {
   assert.equal(streams.length, 1)
   assert.equal(streams[0].callSign, "WXJ84")
   assert.equal(streams[0].streamUrl, "http://wxradio.org:8000/WV-Charleston-WXJ84")
+})
+
+test("parseIcecastStatus drops foreign listen URLs and refuses an oversized catalog", () => {
+  const mixed = catalog.parseIcecastStatus(JSON.stringify({
+    icestats: {
+      source: [
+        { listenurl: "http://127.0.0.1/secret", listeners: 1 },
+        { listenurl: "http://wxradio.org:8000/AZ-Phoenix-KEC94", listeners: 2, server_type: "audio/mpeg" }
+      ]
+    }
+  }))
+  assert.equal(mixed.length, 1)
+  assert.equal(mixed[0].streamUrl, "http://wxradio.org:8000/AZ-Phoenix-KEC94")
+  const sources = []
+  for (let i = 0; i < 501; i++) sources.push({ listenurl: "http://wxradio.org:8000/AZ-Phoenix-KEC94" })
+  assert.deepEqual(catalog.parseIcecastStatus(JSON.stringify({ icestats: { source: sources } })), [])
 })
 
 test("parseIcecastStatus returns [] for empty or unparseable input", () => {

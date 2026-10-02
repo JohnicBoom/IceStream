@@ -5,6 +5,7 @@ import Quickshell
 import qs.Commons
 import qs.Ui
 import "../lib/locate.js" as Locate
+import "../lib/text.js" as TextLib
 import "../lib/version.js" as Version
 
 Panel {
@@ -207,6 +208,7 @@ Panel {
           border.color: Color.accent
 
           Text {
+            textFormat: Text.PlainText
             id: updateLabel
             anchors.centerIn: parent
             text: root.hostWidget ? root.hostWidget.restartNotice : ""
@@ -233,6 +235,7 @@ Panel {
             spacing: Style.space(2)
 
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: root.station && root.station.callSign ? root.station.callSign : "IceStream"
               color: root.contentForeground
@@ -243,6 +246,7 @@ Panel {
             }
 
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: {
                 if (!root.station) return "Volunteer Icecast relay"
@@ -267,7 +271,7 @@ Panel {
             visible: root.playing || (root.radio !== null && root.radio.connecting)
             size: Style.space(36)
             iconText: "󰓛"
-            tooltipText: "Stop"
+            tooltipText: TextLib.plain("Stop")
             foreground: Color.accent
             hoverColor: Color.accent
             fontFamily: root.contentFont
@@ -280,6 +284,7 @@ Panel {
           width: parent.width
           spacing: Style.space(8)
           Text {
+            textFormat: Text.PlainText
             id: volLabel
             anchors.verticalCenter: parent.verticalCenter
             text: "Vol"
@@ -301,6 +306,7 @@ Panel {
             onMoved: function(v) { if (root.radio) root.radio.setVolume(v) }
           }
           Text {
+            textFormat: Text.PlainText
             id: volPercent
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(40)
@@ -313,6 +319,7 @@ Panel {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: root.radio && root.radio.locateMessage !== ""
           text: root.radio ? root.radio.locateMessage : ""
@@ -328,6 +335,7 @@ Panel {
           visible: root.radio && root.radio.locateOptions && root.radio.locateOptions.length > 0
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: "Closest stations"
             color: root.contentForeground
@@ -354,6 +362,7 @@ Panel {
               border.color: kind === "Available" || hasCursor ? Color.accent : root.contentForeground
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -380,6 +389,7 @@ Panel {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: "All volunteer Icecast relays"
           color: root.contentForeground
@@ -429,6 +439,7 @@ Panel {
             border.color: Color.accent
 
             Text {
+              textFormat: Text.PlainText
               anchors.verticalCenter: parent.verticalCenter
               anchors.left: parent.left
               anchors.right: parent.right
@@ -449,6 +460,50 @@ Panel {
                 root.setCursor(root.optionCount + streamRow.index)
                 if (root.radio) root.radio.selectStream(streamRow.modelData)
               }
+            }
+          }
+        }
+
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          visible: root.radio !== null && root.radio.needsNetworkConsent === true
+
+          Text {
+            textFormat: Text.PlainText
+            width: parent.width
+            text: "Network location sends your IP address to wttr.in."
+            color: root.contentForeground
+            opacity: 0.7
+            font.family: root.contentFont
+            font.pixelSize: Style.font.bodySmall
+            wrapMode: Text.WordWrap
+          }
+
+          Rectangle {
+            id: consentButton
+            width: parent.width
+            height: Style.space(28)
+            radius: Style.space(4)
+            color: consentMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+            border.width: 1
+            border.color: Color.accent
+
+            Text {
+              textFormat: Text.PlainText
+              anchors.centerIn: parent
+              text: "Use network location"
+              color: Color.accent
+              font.family: root.contentFont
+              font.pixelSize: Style.font.body
+            }
+
+            MouseArea {
+              id: consentMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: if (root.radio) root.radio.grantNetworkLocate()
             }
           }
         }
@@ -485,6 +540,7 @@ Panel {
             border.color: Color.accent
 
             Text {
+              textFormat: Text.PlainText
               anchors.centerIn: parent
               text: "Find closest"
               color: Color.accent
@@ -503,6 +559,7 @@ Panel {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: "IceStream plays volunteer Icecast relays from wxradio.org. A transmitter with no relay is marked Offline."
           color: root.contentForeground
@@ -515,6 +572,7 @@ Panel {
         // Running code version; shows the installed one too when a shell
         // restart is still needed to load it.
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           horizontalAlignment: Text.AlignRight
           text: {

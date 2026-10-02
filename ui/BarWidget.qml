@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Ui
 import qs.Commons
+import "../lib/text.js" as TextLib
 import "../lib/version.js" as Version
 
 BarWidget {
@@ -27,8 +28,16 @@ BarWidget {
     Quickshell.execDetached(["omarchy", "restart", "shell"])
   }
 
+  readonly property string manifestPath: String(Qt.resolvedUrl("../manifest.json")).replace(/^file:\/\//, "")
+  readonly property string py: "/usr/bin/python3"
+  readonly property string stateScript: String(Qt.resolvedUrl("../bin/icestream-state.py")).replace(/^file:\/\//, "")
+
   function checkForUpdate() {
-    manifestFile.reload()
+    root.readManifest()
+  }
+
+  function readManifest() {
+    manifestRead.fetch([root.py, "-I", "-S", root.stateScript, "read-manifest", root.manifestPath], 1, 8192)
   }
 
   function injectPanel() {
@@ -66,13 +75,23 @@ BarWidget {
 
   onBarChanged: injectPanel()
 
+  Component.onCompleted: root.readManifest()
+
+  // Watch only. The bytes are read by the state helper, with a size cap.
   FileView {
-    id: manifestFile
-    path: String(Qt.resolvedUrl("../manifest.json")).replace(/^file:\/\//, "")
+    id: manifestWatch
+    path: root.manifestPath
+    preload: false
+    blockAllReads: true
+    blockLoading: true
     watchChanges: true
     printErrors: false
-    onFileChanged: reload()
-    onLoaded: root.installedVersion = Version.manifestVersion(text())
+    onFileChanged: root.readManifest()
+  }
+
+  Fetch {
+    id: manifestRead
+    onDone: function(text, token) { root.installedVersion = Version.manifestVersion(text) }
   }
 
   Loader {
@@ -98,16 +117,19 @@ BarWidget {
       var station = root.radioService ? root.radioService.station : null
       var state = root.radioService ? root.radioService.playerState : null
       var status = "Idle"
+      var label = "IceStream — volunteer Icecast relay"
       if (root.playing) status = "Playing"
       else if (state && state.status === "connecting") status = "Connecting"
       else if (state && state.status === "error") status = "Offline"
-      if (root.serviceStale) return root.restartNotice
-      if (!station || !station.callSign) return "IceStream — volunteer Icecast relay"
-      var bits = [station.callSign]
-      if (station.siteName) bits.push(station.siteName)
-      if (station.frequency) bits.push(station.frequency + " MHz")
-      bits.push(status)
-      return bits.join(" · ")
+      if (root.serviceStale) label = root.restartNotice
+      else if (station && station.callSign) {
+        var bits = [station.callSign]
+        if (station.siteName) bits.push(station.siteName)
+        if (station.frequency) bits.push(station.frequency + " MHz")
+        bits.push(status)
+        label = bits.join(" · ")
+      }
+      return TextLib.plain(label)
     }
     iconComponent: Component {
       RadioMark {
@@ -123,7 +145,9 @@ BarWidget {
       if (buttonCode === Qt.RightButton) {
         if (root.radioService) root.radioService.togglePlay()
       } else if (buttonCode === Qt.MiddleButton) {
-        if (root.radioService) root.radioService.locateClosest()
+        // No saved place and no consent: open the panel instead of sending the IP.
+        // Middle-click itself does not refresh the catalogs.
+        if (root.radioService && root.radioService.locateClosest() === "consent") root.open()
       } else {
         root.toggle()
       }

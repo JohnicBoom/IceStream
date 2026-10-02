@@ -44,6 +44,27 @@ test("parseZipLookup returns null for unknown or unparseable ZIP payloads", () =
 
 test("nwsPointUrl rounds to four decimals so NWS does not 301 the request", () => {
   assert.equal(locate.nwsPointUrl(41.96336, -87.97896), "https://api.weather.gov/points/41.9634,-87.9790")
+  assert.equal(locate.nwsPointUrl(120, 0), "")
+  assert.equal(locate.nwsPointUrl(41, 200), "")
+})
+
+test("nwsRadioUrl accepts only a transmitter call sign", () => {
+  assert.equal(locate.nwsRadioUrl("kwo39"), "https://api.weather.gov/radio/KWO39")
+  assert.equal(locate.nwsRadioUrl("../x"), "")
+  assert.equal(locate.nwsRadioUrl("KWO39/evil"), "")
+})
+
+test("locate plans ask before sending the IP address to wttr.in", () => {
+  const weather = { name: "Wood Dale", latitude: 41.96, longitude: -87.98 }
+  const unset = { name: "", latitude: null, longitude: null }
+  assert.equal(locate.openPlan("60191", weather, false).kind, "skip")
+  assert.equal(locate.openPlan("", weather, false).kind, "coords")
+  assert.equal(locate.openPlan("", unset, false).kind, "consent")
+  assert.equal(locate.openPlan("", unset, true).kind, "network")
+  assert.deepEqual(locate.queryPlan("60191", weather, false), { kind: "zip", zip: "60191" })
+  assert.equal(locate.queryPlan("", weather, false).kind, "coords")
+  assert.equal(locate.queryPlan("", unset, false).kind, "consent")
+  assert.equal(locate.queryPlan("", unset, true).kind, "network")
 })
 
 test("parseNwsPoints reads the covering NWR transmitter", () => {

@@ -1,18 +1,23 @@
 import QtQuick
-import Quickshell.Io
 import "../lib/catalog.js" as Catalog
 import "../lib/match.js" as Match
 import "../lib/nwr.js" as Nwr
 
-// Reference data: live Icecast mounts (hourly) and NOAA transmitters
-// (bundled, refreshed daily). A failed or incomplete refresh never
-// replaces good data.
+// Reference data: the bundled NOAA list at startup, then the live Icecast
+// mounts and the NOAA county file each time the panel opens. Nothing is
+// downloaded at shell start and nothing is scheduled. A failed or
+// incomplete refresh never replaces good data.
 Item {
   id: root
 
   property var streams: []
   property var transmitters: []
   property bool freshTransmitters: false
+
+  readonly property string py: "/usr/bin/python3"
+  readonly property string fetchScript: filePath(Qt.resolvedUrl("../bin/icestream-fetch.py"))
+  readonly property string stateScript: filePath(Qt.resolvedUrl("../bin/icestream-state.py"))
+  readonly property string bundlePath: filePath(Qt.resolvedUrl("../data/nwr-transmitters.json"))
 
   function filePath(url) {
     var s = String(url || "")
@@ -32,42 +37,28 @@ Item {
     root.transmitters = root.transmitters.concat([marked])
   }
 
-  function refreshStreams() {
+  // Panel open, and the integration harness. Skip a download that is already running.
+  function refreshOnOpen() {
     if (!icecastFetch.running)
-      icecastFetch.fetch(["curl", "-fsS", "--max-time", "12", "-A", Catalog.userAgent, Catalog.statusUrl], 1)
+      icecastFetch.fetch([root.py, "-I", "-S", root.fetchScript, "icecast"], 1, 512 * 1024)
+    if (!nwrFetch.running)
+      nwrFetch.fetch([root.py, "-I", "-S", root.fetchScript, "ccl"], 1, 2 * 1024 * 1024)
   }
 
-  function refreshTransmitters() {
-    if (!nwrFetch.running)
-      nwrFetch.fetch(["curl", "-fsS", "--compressed", "--max-time", "30", "-A", Catalog.userAgent, Nwr.CCL_SOURCE], 1)
+  function applyBundle(text) {
+    if (root.freshTransmitters) return
+    var parsed = Nwr.parseBundle(text)
+    if (!parsed.length) return
+    root.transmitters = Catalog.mergeByCallSign(root.transmitters, parsed)
   }
 
   Component.onCompleted: {
-    root.refreshStreams()
-    root.refreshTransmitters()
+    bundleFetch.fetch([root.py, "-I", "-S", root.stateScript, "read-bundle", root.bundlePath], 1, 512 * 1024)
   }
 
-  // Live Icecast mounts change often; the transmitter list rarely.
-  Timer {
-    interval: 60 * 60 * 1000
-    running: true
-    repeat: true
-    onTriggered: root.refreshStreams()
-  }
-
-  Timer {
-    interval: 24 * 60 * 60 * 1000
-    running: true
-    repeat: true
-    onTriggered: root.refreshTransmitters()
-  }
-
-  FileView {
-    path: root.filePath(Qt.resolvedUrl("../data/nwr-transmitters.json"))
-    printErrors: false
-    // A NOAA download that already arrived is newer; otherwise merge, with
-    // any /radio/{call} lookups winning.
-    onLoaded: if (!root.freshTransmitters) root.transmitters = Catalog.mergeByCallSign(root.transmitters, Nwr.parseBundle(text()))
+  Fetch {
+    id: bundleFetch
+    onDone: function(text, token) { root.applyBundle(text) }
   }
 
   Fetch {
