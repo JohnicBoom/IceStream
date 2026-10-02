@@ -71,7 +71,7 @@ test("state helper does not touch the real settings when HOME is different", () 
 test("state helper reads the manifest and bundle, and refuses a stand-in", () => {
   const manifest = run(stateScript, ["read-manifest", join(root, "manifest.json")])
   assert.equal(manifest.status, 0)
-  assert.match(manifest.stdout, /"version": "0.3.5"/)
+  assert.match(manifest.stdout, /"version": "0.3.6"/)
 
   const bundle = run(stateScript, ["read-bundle", join(root, "data/nwr-transmitters.json")])
   assert.equal(bundle.status, 0)

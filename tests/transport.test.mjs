@@ -24,24 +24,24 @@ test("startup kills orphans once", () => {
   assert.equal(state.stopRunning, false)
 })
 
-test("play from idle runs the stop script first, then launches", () => {
-  const { log, state } = run([play(1), { type: "stopExited" }])
-  assert.deepEqual(log, [["closeIpc", "runStop"], ["launch:1"]])
+test("play with nothing running launches without scanning", () => {
+  const { log, state } = run([{ type: "start" }, { type: "stopExited" }, play(1)])
+  assert.deepEqual(log, [["runStop"], [], ["closeIpc", "launch:1"]])
   assert.equal(state.mpvToken, 1)
   assert.equal(state.mpvRunning, true)
+  assert.equal(state.stopRunning, false)
 })
 
 test("the launch effect carries the command", () => {
-  const r1 = transport.step(transport.initial(), play(1))
-  const r2 = transport.step(r1.state, { type: "stopExited" })
-  assert.deepEqual(r2.effects[0].command, ["play.sh", "sock", "url1", "75"])
+  const r = transport.step(transport.initial(), play(1))
+  const launch = r.effects.find((effect) => effect.type === "launch")
+  assert.deepEqual(launch.command, ["play.sh", "sock", "url1", "75"])
 })
 
 test("switching streams waits for both the stop script and the old mpv (stop exits first)", () => {
-  const { log } = run([play(1), { type: "stopExited" }, play(2), { type: "stopExited" }, { type: "mpvExited" }])
+  const { log } = run([play(1), play(2), { type: "stopExited" }, { type: "mpvExited" }])
   assert.deepEqual(log, [
-    ["closeIpc", "runStop"],
-    ["launch:1"],
+    ["closeIpc", "launch:1"],
     ["closeIpc", "terminateMpv", "runStop"],
     [],
     ["closeIpc", "launch:2"]
@@ -49,12 +49,17 @@ test("switching streams waits for both the stop script and the old mpv (stop exi
 })
 
 test("switching streams waits for both (old mpv exits first)", () => {
-  const { log } = run([play(1), { type: "stopExited" }, play(2), { type: "mpvExited" }, { type: "stopExited" }])
-  assert.deepEqual(log.slice(2), [["closeIpc", "terminateMpv", "runStop"], ["closeIpc"], ["launch:2"]])
+  const { log } = run([play(1), play(2), { type: "mpvExited" }, { type: "stopExited" }])
+  assert.deepEqual(log, [
+    ["closeIpc", "launch:1"],
+    ["closeIpc", "terminateMpv", "runStop"],
+    ["closeIpc"],
+    ["launch:2"]
+  ])
 })
 
 test("a replaced stream does not report ended", () => {
-  const { log } = run([play(1), { type: "stopExited" }, play(2), { type: "mpvExited" }])
+  const { log } = run([play(1), play(2), { type: "mpvExited" }])
   assert.ok(!log.flat().some((e) => e.indexOf("ended") === 0))
 })
 
@@ -63,35 +68,63 @@ test("play while the stop script is already running does not start a second one"
   assert.deepEqual(log, [["runStop"], ["closeIpc"], ["launch:1"]])
 })
 
-test("rapid plays launch only the latest token", () => {
-  const { log, state } = run([play(1), play(2), play(3), { type: "stopExited" }])
-  assert.deepEqual(log[3], ["launch:3"])
+test("rapid plays during the startup scan launch only the latest token", () => {
+  const { log, state } = run([{ type: "start" }, play(1), play(2), play(3), { type: "stopExited" }])
+  assert.deepEqual(log, [["runStop"], ["closeIpc"], ["closeIpc"], ["closeIpc"], ["launch:3"]])
   assert.equal(state.mpvToken, 3)
 })
 
-test("stop cancels a pending launch", () => {
-  const { log, state } = run([play(1), { type: "stop" }, { type: "stopExited" }])
-  assert.deepEqual(log, [["closeIpc", "runStop"], ["closeIpc"], []])
+test("stop cancels a launch still waiting on the startup scan", () => {
+  const { log, state } = run([{ type: "start" }, play(1), { type: "stop" }, { type: "stopExited" }])
+  assert.deepEqual(log, [["runStop"], ["closeIpc"], ["closeIpc"], []])
   assert.equal(state.mpvRunning, false)
   assert.equal(state.pending, null)
 })
 
+test("stop with nothing running does not scan", () => {
+  const { log } = run([{ type: "start" }, { type: "stopExited" }, { type: "stop" }])
+  assert.deepEqual(log, [["runStop"], [], ["closeIpc"]])
+})
+
+test("resume while the old mpv is still being stopped waits, then launches", () => {
+  const { log, state } = run([play(1), { type: "stop" }, play(2), { type: "mpvExited" }, { type: "stopExited" }])
+  assert.deepEqual(log, [
+    ["closeIpc", "launch:1"],
+    ["closeIpc", "terminateMpv", "runStop"],
+    ["closeIpc", "terminateMpv"],
+    ["closeIpc"],
+    ["launch:2"]
+  ])
+  assert.equal(state.mpvToken, 2)
+  assert.equal(state.mpvRunning, true)
+})
+
 test("stop while playing terminates mpv and kills strays", () => {
-  const { log, state } = run([play(1), { type: "stopExited" }, { type: "stop" }, { type: "mpvExited" }, { type: "stopExited" }])
-  assert.deepEqual(log.slice(2), [["closeIpc", "terminateMpv", "runStop"], ["closeIpc", "ended:1"], []])
+  const { log, state } = run([play(1), { type: "stop" }, { type: "mpvExited" }, { type: "stopExited" }])
+  assert.deepEqual(log, [
+    ["closeIpc", "launch:1"],
+    ["closeIpc", "terminateMpv", "runStop"],
+    ["closeIpc", "ended:1"],
+    []
+  ])
   assert.equal(state.mpvToken, 0)
+  assert.equal(state.mpvRunning, false)
 })
 
 test("mpv exiting on its own reports ended with its token", () => {
-  const { log, state } = run([play(4), { type: "stopExited" }, { type: "mpvExited" }])
-  assert.deepEqual(log[2], ["closeIpc", "ended:4"])
+  const { log, state } = run([play(4), { type: "mpvExited" }])
+  assert.deepEqual(log[1], ["closeIpc", "ended:4"])
   assert.equal(state.mpvRunning, false)
   assert.equal(state.mpvToken, 0)
 })
 
 test("a launch that fails to start behaves like an exit", () => {
-  const { log } = run([play(1), { type: "stopExited" }, { type: "mpvExited" }, play(2), { type: "stopExited" }])
-  assert.deepEqual(log.slice(2), [["closeIpc", "ended:1"], ["closeIpc", "runStop"], ["launch:2"]])
+  const { log } = run([play(1), { type: "mpvExited" }, play(2)])
+  assert.deepEqual(log, [
+    ["closeIpc", "launch:1"],
+    ["closeIpc", "ended:1"],
+    ["closeIpc", "launch:2"]
+  ])
 })
 
 test("step never mutates its input", () => {

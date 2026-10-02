@@ -5,6 +5,8 @@ Item {
   id: root
   property color ink: "white"
   property bool playing: false
+  // One arc as soon as a start is accepted. Both arcs only once audio flows.
+  property bool connecting: false
   implicitWidth: 16
   implicitHeight: 16
 
@@ -116,7 +118,7 @@ Item {
 
   Shape {
     anchors.fill: parent
-    visible: root.playing
+    visible: root.playing || root.connecting
     antialiasing: true
     preferredRendererType: Shape.CurveRenderer
 
@@ -134,6 +136,14 @@ Item {
         radiusY: 3.4 * root.u
       }
     }
+  }
+
+  Shape {
+    anchors.fill: parent
+    visible: root.playing
+    antialiasing: true
+    preferredRendererType: Shape.CurveRenderer
+
     ShapePath {
       strokeColor: root.ink
       strokeWidth: Math.max(1.05, root.u * 1.2)

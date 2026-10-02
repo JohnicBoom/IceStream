@@ -16,6 +16,7 @@ BarWidget {
     ? bar.shell.serviceFor(moduleName)
     : null
   readonly property bool playing: radioService ? radioService.playing : false
+  readonly property bool connecting: radioService ? radioService.connecting : false
   // After a plugin update Omarchy keeps running the old code (widget from
   // Qt's component cache, keepLoaded Service) until the shell restarts; see
   // lib/version.js. Compare the manifest on disk with the running code.
@@ -138,6 +139,7 @@ BarWidget {
         height: parent.height
         ink: button.foreground
         playing: root.playing
+        connecting: root.connecting && !root.playing
       }
     }
     onPressed: function(buttonCode) {
