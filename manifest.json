@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.johnicboom.icestream",
   "name": "IceStream",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "author": "John Pappas",
   "license": "MIT",
   "homepage": "https://github.com/JohnicBoom/IceStream",

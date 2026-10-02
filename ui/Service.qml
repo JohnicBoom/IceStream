@@ -30,6 +30,11 @@ Item {
   readonly property var streams: catalogs.streams
   readonly property var transmitters: catalogs.transmitters
   readonly property var locateOptions: locator.locateOptions
+  // Locator stores catalogs as an untyped var, so it cannot watch these.
+  // Panel open starts locate and Icecast together; locate often finishes
+  // first and would leave every Closest row Offline until this rebuild.
+  onStreamsChanged: if (locator) locator.applyOptions()
+  onTransmittersChanged: if (locator) locator.applyOptions()
   readonly property var visibleStreams: Match.preferNearby(Match.filterStreams(catalogs.streams, root.searchQuery), {
     state: locator.nearbyState,
     preferredCallSigns: locator.nearbyCallSigns

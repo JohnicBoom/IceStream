@@ -219,6 +219,28 @@ test("buildLocateOptions ranks Wood Dale's playable Icecast ahead of closer offl
   assert.equal(locate.optionKind(ranked[2]), "offline")
 })
 
+test("closest stations stay offline until the Icecast list is attached", () => {
+  const early = locate.buildLocateOptions({
+    covering: kwo39,
+    streams: [],
+    transmitters: dupage,
+    origin: woodDale,
+    sameCode: "017043"
+  })
+  const planoEarly = early.find((station) => station.callSign === "KXI58")
+  assert.equal(locate.optionKind(planoEarly), "offline")
+  const late = locate.buildLocateOptions({
+    covering: kwo39,
+    streams: [plano],
+    transmitters: dupage,
+    origin: woodDale,
+    sameCode: "017043"
+  })
+  const planoLate = late.find((station) => station.callSign === "KXI58")
+  assert.equal(planoLate.streamUrl, "http://wxradio.org:8000/IL-Plano-KXI58")
+  assert.equal(locate.optionKind(planoLate), "available")
+})
+
 test("buildLocateOptions finds Icecast neighbors through NWS SAME codes", () => {
   const covering = {
     callSign: "KZZ67",

@@ -37,11 +37,35 @@ ShellRoot {
 
   readonly property var steps: [
     {
-      name: "catalogs load (Icecast + NOAA bundle)",
+      name: "ZIP locate before Icecast marks Plano offline",
+      timeout: 25000,
+      action: function() { svc.zipText = "60191"; svc.locateClosest() },
+      until: function() {
+        if (svc.transmitters.length < 900) return false
+        if (svc.locateMessage.indexOf("covering station") === -1) return false
+        var calls = svc.locateOptions.map(function(o) { return o.callSign })
+        return calls.indexOf("KWO39") !== -1 && calls.indexOf("KXI58") !== -1
+      },
+      after: function() {
+        if (svc.streams.length !== 0) return "Icecast loaded before the locate finished"
+        var plano = svc.locateOptions.filter(function(o) { return o.callSign === "KXI58" })[0]
+        if (!plano) return "KXI58 missing before Icecast"
+        if (plano.streamUrl) return "KXI58 already had a stream before Icecast"
+        return ""
+      }
+    },
+    {
+      name: "Icecast list attaches to Closest stations without another locate",
       timeout: 25000,
       action: function() { svc.ensureCatalogs() },
-      until: function() { return svc.streams.length > 1 && svc.transmitters.length >= 900 },
+      until: function() {
+        if (svc.streams.length < 2 || svc.transmitters.length < 900) return false
+        var plano = svc.locateOptions.filter(function(o) { return o.callSign === "KXI58" })[0]
+        return !!(plano && plano.streamUrl)
+      },
       after: function() {
+        if (svc.locateMessage.indexOf("covering station") === -1)
+          return "covering message was replaced: " + svc.locateMessage
         harness.firstStream = svc.streams[0]
         harness.secondStream = svc.streams[1]
         return ""
@@ -71,6 +95,8 @@ ShellRoot {
         if (svc.playerState.status !== "playing") return "locate changed playback to " + svc.playerState.status
         var calls = svc.locateOptions.map(function(o) { return o.callSign })
         if (calls.indexOf("KWO39") === -1) return "KWO39 missing from " + JSON.stringify(calls)
+        var plano = svc.locateOptions.filter(function(o) { return o.callSign === "KXI58" })[0]
+        if (!plano || !plano.streamUrl) return "KXI58 is not playable in " + JSON.stringify(calls)
         return ""
       }
     },

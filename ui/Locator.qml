@@ -18,6 +18,10 @@ Item {
   property string nearbyState: ""
   property var nearbyCallSigns: []
   property var lastOrigin: null
+  // Kept so a catalog that arrives after the locate can be attached without
+  // another network request. The panel opens both at once.
+  property var locatedCovering: null
+  property string locatedSameCode: ""
   property var weather: null
   property bool weatherReady: false
   property bool openWaiting: false
@@ -191,23 +195,33 @@ Item {
     if (result.station.siteCity && result.station.siteCity !== result.station.siteName)
       title += " (" + result.station.siteCity + ")"
     root.nearbyState = result.station.siteState || ""
-    root.locateOptions = Locate.buildLocateOptions({
-      covering: result.station,
-      streams: root.catalogs.streams,
-      transmitters: root.catalogs.transmitters,
-      origin: root.lastOrigin,
-      sameCode: sameCode
-    })
-    var calls = []
+    root.locatedCovering = result.station
+    root.locatedSameCode = String(sameCode || "")
+    root.applyOptions()
     var coveringOption = null
     for (var i = 0; i < root.locateOptions.length; i++) {
-      calls.push(root.locateOptions[i].callSign)
       if (root.locateOptions[i].covering) coveringOption = root.locateOptions[i]
     }
-    root.nearbyCallSigns = calls
     var kind = Locate.optionKind(coveringOption || result.station)
     if (kind === "available") root.showMessage(title + " is the covering station (Available).")
     else root.showMessage(title + " is the covering station. No volunteer Icecast for it.")
+  }
+
+  // Rebuild the rows from the catalogs already in memory. Does not change the
+  // covering message, so a late Icecast list cannot wipe "Connecting…".
+  function applyOptions() {
+    if (!root.locatedCovering) return
+    root.locateOptions = Locate.buildLocateOptions({
+      covering: root.locatedCovering,
+      streams: root.catalogs.streams,
+      transmitters: root.catalogs.transmitters,
+      origin: root.lastOrigin,
+      sameCode: root.locatedSameCode
+    })
+    var calls = []
+    for (var i = 0; i < root.locateOptions.length; i++)
+      calls.push(root.locateOptions[i].callSign)
+    root.nearbyCallSigns = calls
   }
 
   onConsentChanged: {
