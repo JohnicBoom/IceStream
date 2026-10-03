@@ -292,14 +292,14 @@ Panel {
             font.family: root.contentFont
             font.pixelSize: Style.font.bodySmall
           }
-          // IceStream-only mpv volume (0-100), independent of system volume.
+          // IceStream-only mpv volume (0-130), independent of system volume.
           PanelSlider {
             id: volSlider
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - volLabel.width - volPercent.width - parent.spacing * 2
             bar: root.bar
             minimum: 0
-            maximum: 100
+            maximum: 130
             step: 5
             integer: true
             value: root.radio ? root.radio.volume : 75

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.johnicboom.icestream",
   "name": "IceStream",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "author": "John Pappas",
   "license": "MIT",
   "homepage": "https://github.com/JohnicBoom/IceStream",
@@ -28,7 +28,7 @@
         "description": "IceStream playback volume. Other apps keep their own volume.",
         "defaultValue": 75,
         "min": 0,
-        "max": 100
+        "max": 130
       }
     ]
   }

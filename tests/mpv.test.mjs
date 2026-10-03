@@ -10,7 +10,8 @@ test("command builds one newline-terminated JSON IPC line", () => {
 })
 
 test("setVolumeCommand clamps and sends an integer volume", () => {
-  assert.equal(mpv.setVolumeCommand(140), '{"command":["set_property","volume",100]}\n')
+  assert.equal(mpv.setVolumeCommand(140), '{"command":["set_property","volume",130]}\n')
+  assert.equal(mpv.setVolumeCommand(130), '{"command":["set_property","volume",130]}\n')
   assert.equal(mpv.setVolumeCommand(33.4), '{"command":["set_property","volume",33]}\n')
 })
 

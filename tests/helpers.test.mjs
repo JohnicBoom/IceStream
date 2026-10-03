@@ -71,7 +71,7 @@ test("state helper does not touch the real settings when HOME is different", () 
 test("state helper reads the manifest and bundle, and refuses a stand-in", () => {
   const manifest = run(stateScript, ["read-manifest", join(root, "manifest.json")])
   assert.equal(manifest.status, 0)
-  assert.match(manifest.stdout, /"version": "0.3.7"/)
+  assert.match(manifest.stdout, /"version": "0.3.8"/)
 
   const bundle = run(stateScript, ["read-bundle", join(root, "data/nwr-transmitters.json")])
   assert.equal(bundle.status, 0)
@@ -129,4 +129,35 @@ test("play script refuses a bad url before it can remove the socket", () => {
   assert.equal(dotted.status, 64)
   assert.match(dotted.stderr, /^icestream:/)
   assert.deepEqual(stamp(socket), before)
+
+  // 131 is refused before the script unlinks the live socket. An accepted
+  // volume is not executed here: that path removes the real socket, then execs mpv.
+  const loud = spawnSync("bash", [playScript, socket, "http://wxradio.org:8000/AZ-Phoenix-KEC94", "131"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 2000,
+  })
+  assert.equal(loud.status, 64)
+  assert.match(loud.stderr, /^icestream: refusing volume/)
+  assert.deepEqual(stamp(socket), before)
+})
+
+test("state helper accepts a legacy volume through 130 and rejects 131", () => {
+  const probe = spawnSync(py, ["-c", `
+import importlib.util, json
+spec = importlib.util.spec_from_file_location("icestream_state", "bin/icestream-state.py")
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+def ok(body):
+    return mod.payload_ok(json.dumps(body).encode())
+assert ok({"networkLocate": False, "station": None})
+assert ok({"volume": 130, "networkLocate": False, "station": None})
+assert ok({"volume": 0, "networkLocate": False, "station": None})
+assert not ok({"volume": 131, "networkLocate": False, "station": None})
+assert not ok({"volume": 130.0, "networkLocate": False, "station": None})
+assert not ok({"volume": "130", "networkLocate": False, "station": None})
+print("ok")
+`], { cwd: root, encoding: "utf8", timeout: 2000 })
+  assert.equal(probe.status, 0, probe.stderr)
+  assert.equal(probe.stdout, "ok\n")
 })

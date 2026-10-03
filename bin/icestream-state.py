@@ -231,7 +231,7 @@ def payload_ok(raw):
     if not isinstance(data, dict) or not set(data).issubset(STATE_KEYS):
         return False
     volume = data.get("volume", None)
-    if volume is not None and (type(volume) is not int or volume < 0 or volume > 100):
+    if volume is not None and (type(volume) is not int or volume < 0 or volume > 130):
         return False
     if "networkLocate" in data and type(data["networkLocate"]) is not bool:
         return False

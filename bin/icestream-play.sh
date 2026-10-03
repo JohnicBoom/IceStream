@@ -42,7 +42,7 @@ set +f
 IFS=$old_ifs
 
 case "$vol" in
-  [0-9]|[1-9][0-9]|100) ;;
+  [0-9]|[1-9][0-9]|1[0-2][0-9]|130) ;;
   *) echo "icestream: refusing volume" >&2; exit 64 ;;
 esac
 

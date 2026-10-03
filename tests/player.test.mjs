@@ -95,10 +95,13 @@ test("withStation returns a new state and leaves the original untouched", () => 
   assert.equal(next.status, "idle")
 })
 
-test("clampVolume rounds and clamps to 0..100", () => {
+test("clampVolume rounds and clamps to 0..130", () => {
   assert.equal(player.clampVolume(42.6), 43)
   assert.equal(player.clampVolume(-5), 0)
-  assert.equal(player.clampVolume(250), 100)
+  assert.equal(player.clampVolume(110), 110)
+  assert.equal(player.clampVolume(130), 130)
+  assert.equal(player.clampVolume(131), 130)
+  assert.equal(player.clampVolume(250), 130)
   assert.equal(player.clampVolume("nope"), null)
   assert.equal(player.clampVolume("50"), 50)
   assert.equal(player.clampVolume(50), 50)
@@ -166,7 +169,7 @@ test("parseSettings tolerates old files and junk", () => {
   })
   assert.deepEqual(player.parseSettings("{"), { station: null, volume: null, networkLocate: false })
   assert.deepEqual(player.parseSettings(""), { station: null, volume: null, networkLocate: false })
-  assert.deepEqual(player.parseSettings(JSON.stringify({ volume: 900 })), { station: null, volume: 100, networkLocate: false })
+  assert.deepEqual(player.parseSettings(JSON.stringify({ volume: 900 })), { station: null, volume: 130, networkLocate: false })
 })
 
 test("parseSettings drops a station whose play address is not the wxradio relay", () => {
